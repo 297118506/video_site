@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block title %}用户管理 - 后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            <div class="card">
+                <div class="card-header">管理菜单</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+                    <a href="{{ url_for('admin_videos') }}" class="list-group-item list-group-item-action"><i class="bi bi-film"></i> 视频管理</a>
+                    <a href="{{ url_for('admin_shorts') }}" class="list-group-item list-group-item-action{% if active_tab == 'shorts_admin' %} active{% endif %}"><i class="bi bi-youtube"></i> 短视频管理</a>
+                    <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder"></i> 分类管理</a>
+                    <a href="{{ url_for('admin_short_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-symlink"></i> 短·分类管理</a>
+                    <a href="{{ url_for('admin_series') }}" class="list-group-item list-group-item-action"><i class="bi bi-collection"></i> 系列管理</a>
+                    <a href="{{ url_for('admin_openlist') }}" class="list-group-item list-group-item-action"><i class="bi bi-cloud"></i> OpenList管理</a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action active"><i class="bi bi-people"></i> 用户管理</a>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="col-md-10">
+            <h2 class="mb-4"><i class="bi bi-people"></i> 用户管理</h2>
+            
+            <div class="card mb-3">
+                <div class="card-header">添加用户</div>
+                <div class="card-body">
+                    <form id="addUserForm" class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">用户名</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">密码</label>
+                            <input type="password" name="password" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">角色</label>
+                            <select name="role" class="form-select">
+                                <option value="user">普通用户</option>
+                                <option value="admin">管理员</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-plus"></i> 添加
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for username, user in users.items() %}
+                            <tr>
+                                <td>{{ user.id }}</td>
+                                <td>{{ username }}</td>
+                                <td>
+                                    {% if user.role == 'admin' %}
+                                    <span class="badge bg-danger">管理员</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">普通用户</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if username != session.get('username') %}
+                                    <button onclick="deleteUser({{ user.id }}, '{{ username }}')" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% else %}
+                                    <span class="text-muted">当前用户</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.getElementById('addUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var formData = new FormData(this);
+    var data = {
+        username: formData.get('username'),
+        password: formData.get('password'),
+        role: formData.get('role')
+    };
+    fetch('/api/users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r => r.json()).then(res => {
+        if (res.success) location.reload();
+        else alert(res.message || '添加失败');
+    }).catch(err => alert('请求失败: ' + err));
+});
+
+function deleteUser(id, username) {
+    if (!confirm('确定删除用户 ' + username + '？')) return;
+    fetch('/api/users/' + id, {
+        method: 'DELETE'
+    }).then(r => r.json()).then(res => {
+        if (res.success) location.reload();
+        else alert('删除失败');
+    }).catch(err => alert('请求失败: ' + err));
+}
+</script>
+{% endblock %}

@@ -1,0 +1,467 @@
+{% extends 'base.html' %}
+
+{% block title %}短视频 - {{ config.SITE_NAME or '视频管理' }}{% endblock %}
+
+{% block content %}
+<div class="shorts-wrapper">
+    <div id="shortsFeed" class="shorts-feed">
+        {% if videos %}
+            {% for v in videos %}
+            <div class="short-item" data-video-id="{{ v.id }}" data-video-url="{{ v.video_url }}" data-video-type="{{ v.video_type or '' }}">
+                <div class="short-video-container">
+                    <video class="short-video"
+                           poster="{{ v.cover or '' }}"
+                           playsinline
+                           webkit-playsinline
+                           preload="metadata"
+                           controlsList="nodownload"
+                           disablepictureinpicture></video>
+                    <div class="short-loading" style="display:none;">
+                        <div class="spinner-border text-light" role="status"></div>
+                    </div>
+                    <button class="short-play-btn" aria-label="播放/暂停">
+                        <i class="bi bi-play-fill"></i>
+                    </button>
+                    <button class="short-fullscreen-btn" aria-label="全屏" onclick="toggleFullscreen(this)">
+                        <i class="bi bi-fullscreen"></i>
+                    </button>
+                    <div class="short-progress-bar" onclick="seekShortVideo(event, this)">
+                        <div class="short-progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="short-info">
+                    <a href="{{ url_for('video_detail', video_id=v.id) }}" class="short-title" target="_blank">
+                        {{ v.title }}
+                    </a>
+                    {% if v.description %}
+                    <div class="short-desc">{{ v.description }}</div>
+                    {% endif %}
+                    <div class="short-meta">
+                        <span><i class="bi bi-eye"></i> {{ v.views or 0 }}</span>
+                        {% if v.year %}<span>· {{ v.year }}</span>{% endif %}
+                        {% if v.genre %}<span>· {{ v.genre }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="shorts-empty">
+                <i class="bi bi-film" style="font-size:64px;opacity:.25;"></i>
+                <h3>暂无短视频</h3>
+                <p class="text-muted mb-3">请前往 OpenList 管理导入视频时选择「导入到短视频」模块</p>
+                <a href="{{ url_for('admin_openlist') }}" class="btn btn-primary">去导入</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="shorts-top-bar">
+        <div class="shorts-left">
+            <a href="{{ url_for('shorts_index') }}" class="shorts-back-btn" title="返回分类列表">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <div class="shorts-cat-label">
+                {% if current_category %}
+                <i class="bi bi-folder2-open"></i> {{ current_category.name }}
+                {% else %}
+                <i class="bi bi-grid-fill"></i> 全部
+                {% endif %}
+            </div>
+            {% if categories %}
+            <div class="shorts-cat-switch">
+                <select onchange="window.location.href=this.value" title="切换分类">
+                    <option value="{{ url_for('shorts_play', category_id=0) }}" {% if category_id == 0 %}selected{% endif %}>全部</option>
+                    {% for cat in categories %}
+                    {% if cat.parent_id == 0 %}
+                    <option value="{{ url_for('shorts_play', category_id=cat.id) }}" {% if category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% for sub in categories %}
+                        {% if sub.parent_id == cat.id %}
+                        <option value="{{ url_for('shorts_play', category_id=sub.id) }}" {% if category_id == sub.id %}selected{% endif %}>&nbsp;&nbsp;└ {{ sub.name }}</option>
+                        {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+        <div class="shorts-indicator">
+            <div class="short-auto-toggle">
+                <label>
+                    <input type="checkbox" id="autoNextChk" checked>
+                    <span class="sat-track"><span class="sat-thumb"></span></span>
+                    <span class="sat-label">自动切换</span>
+                </label>
+            </div>
+            <div class="short-auto-toggle">
+                <label>
+                    <input type="checkbox" id="randomPlayChk">
+                    <span class="sat-track"><span class="sat-thumb"></span></span>
+                    <span class="sat-label">随机播放</span>
+                </label>
+            </div>
+            <span id="shortsProgress" class="shorts-progress"></span>
+        </div>
+    </div>
+
+    <div class="shorts-hint" id="shortsHint">
+        <i class="bi bi-chevron-up"></i> 上滑查看下一个 · <i class="bi bi-chevron-down"></i> 下滑返回上一个
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var feed = document.getElementById('shortsFeed');
+    if (!feed) return;
+    var items = feed.querySelectorAll('.short-item');
+    var videos = document.querySelectorAll('.short-video');
+
+    // 恢复自动切换开关
+    var autoNext = true;
+    try {
+        var saved = localStorage.getItem('shorts_auto_next');
+        if (saved !== null) autoNext = saved === 'true';
+    } catch(e) {}
+    var autoChk = document.getElementById('autoNextChk');
+    if (autoChk) {
+        autoChk.checked = autoNext;
+        autoChk.addEventListener('change', function() {
+            autoNext = autoChk.checked;
+            try { localStorage.setItem('shorts_auto_next', String(autoNext)); } catch(e) {}
+        });
+    }
+
+    // 随机播放开关
+    var randomPlay = false;
+    try {
+        var savedRand = localStorage.getItem('shorts_random_play');
+        if (savedRand !== null) randomPlay = savedRand === 'true';
+    } catch(e) {}
+    var randChk = document.getElementById('randomPlayChk');
+    if (randChk) {
+        randChk.checked = randomPlay;
+        randChk.addEventListener('change', function() {
+            randomPlay = randChk.checked;
+            try { localStorage.setItem('shorts_random_play', String(randomPlay)); } catch(e) {}
+            if (randomPlay) {
+                shuffleFeed();
+            } else {
+                // 关闭随机播放时刷新页面恢复原始顺序
+                location.reload();
+            }
+        });
+    }
+
+    // 随机播放：打乱 DOM 顺序
+    function shuffleFeed() {
+        if (items.length <= 1) return;
+        var feedEl = document.getElementById('shortsFeed');
+        var itemArr = Array.prototype.slice.call(items);
+        // Fisher-Yates 洗牌
+        for (var i = itemArr.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = itemArr[i];
+            itemArr[i] = itemArr[j];
+            itemArr[j] = tmp;
+        }
+        // 重新按打乱顺序追加到 DOM
+        itemArr.forEach(function(el) { feedEl.appendChild(el); });
+        // 重新获取引用
+        items = feedEl.querySelectorAll('.short-item');
+        videos = feedEl.querySelectorAll('.short-video');
+        // 重置到第一个
+        feedEl.scrollTop = 0;
+        currentIndex = 0;
+        playAt(0);
+    }
+
+    function safeUrl(u) { return (u || '').replace(/"/g, '&quot;'); }
+
+    // 根据视频宽高比设置 object-fit
+    function applyVideoFit(player) {
+        if (!player || !player.videoWidth || !player.videoHeight) return;
+        var ratio = player.videoWidth / player.videoHeight;
+        if (ratio < 1) {
+            // 竖屏视频：填充屏幕
+            player.style.objectFit = 'cover';
+        } else {
+            // 横屏视频：完整显示，上下留黑
+            player.style.objectFit = 'contain';
+        }
+    }
+
+    // 初始化视频源（先绑定事件再设置 src，确保不丢事件）
+    videos.forEach(function(player) {
+        var item = player.closest('.short-item');
+        if (!item) return;
+        var fill = item.querySelector('.short-progress-fill');
+
+        // 1) 视频元数据加载后自适应横竖屏
+        player.addEventListener('loadedmetadata', function() {
+            applyVideoFit(player);
+        });
+
+        // 2) 进度条更新
+        player.addEventListener('timeupdate', function() {
+            if (!fill || !player.duration) return;
+            var pct = (player.currentTime / player.duration) * 100;
+            fill.style.width = pct + '%';
+        });
+
+        // 3) 播放结束自动连播（不依赖 loop 属性，配合 switchToNext）
+        player.addEventListener('ended', function() {
+            if (!autoNext) return;
+            var idx = Array.prototype.indexOf.call(videos, player);
+            if (idx < items.length - 1) {
+                setTimeout(function(){ switchToNext(idx + 1); }, 300);
+            }
+        });
+
+        // 4) 点击视频切换播放/暂停
+        player.addEventListener('click', function(e) {
+            var it = player.closest('.short-item');
+            if (player.paused) {
+                player.play().catch(function(){});
+                showPlayBtn(it, false);
+            } else {
+                player.pause();
+                showPlayBtn(it, true);
+            }
+        });
+
+        // 如果元数据已经加载完成（缓存视频），立即应用适配
+        if (player.readyState >= 1) {
+            applyVideoFit(player);
+        }
+
+        var url = item.getAttribute('data-video-url');
+        var vtype = (item.getAttribute('data-video-type') || '').toLowerCase();
+        if (!url) return;
+        var ext = vtype;
+        if (!ext) {
+            ext = url.split('.').pop().split('?')[0].toLowerCase();
+        }
+        if (ext === 'm3u8') {
+            if (window.Hls && Hls.isSupported()) {
+                var hls = new Hls();
+                hls.on(Hls.Events.MANIFEST_PARSED, function() { applyVideoFit(player); });
+                hls.loadSource(url);
+                hls.attachMedia(player);
+            } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+                player.src = url;
+            }
+        } else {
+            player.src = url;
+        }
+    });
+
+    var currentIndex = 0;
+    var scrollLock = false;
+
+    function updateProgress() {
+        var el = document.getElementById('shortsProgress');
+        if (el) el.textContent = (currentIndex + 1) + ' / ' + items.length;
+    }
+    updateProgress();
+
+    function showPlayBtn(item, show) {
+        var btn = item.querySelector('.short-play-btn');
+        if (!btn) return;
+        if (show) {
+            btn.classList.add('visible');
+            btn.innerHTML = '<i class="bi bi-play-fill"></i>';
+        } else {
+            btn.classList.remove('visible');
+        }
+    }
+
+    function playAt(index) {
+        if (index < 0 || index >= items.length) return;
+        currentIndex = index;
+        items.forEach(function(it, idx) {
+            var p = it.querySelector('.short-video');
+            var playBtn = it.querySelector('.short-play-btn');
+            if (!p) return;
+            if (idx === index) {
+                try { p.currentTime = 0; } catch(e) {}
+                p.volume = 1;
+                p.muted = false;
+                var playPromise = p.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                    playPromise.catch(function() {
+                        p.muted = true;
+                        p.play().catch(function(){});
+                    });
+                }
+                showPlayBtn(it, false);
+                var vid = it.getAttribute('data-video-id');
+                if (vid && !it.dataset.viewed) {
+                    it.dataset.viewed = '1';
+                    fetch('/api/videos/' + vid + '/view', {method:'POST'}).catch(function(){});
+                }
+            } else {
+                p.pause();
+                try { p.currentTime = 0; } catch(e) {}
+                var fill = it.querySelector('.short-progress-fill');
+                if (fill) fill.style.width = '0%';
+                showPlayBtn(it, true);
+            }
+        });
+        updateProgress();
+    }
+
+    // 切换到指定视频（兼容全屏：若当前处于全屏，则先退出全屏再滚动）
+    function goTo(index) {
+        if (index < 0 || index >= items.length) return;
+        var target = items[index];
+        if (!target) return;
+        scrollLock = true;
+        feed.scrollTo({top: target.offsetTop, behavior: 'smooth'});
+        setTimeout(function() { scrollLock = false; playAt(index); }, 520);
+    }
+
+    // 切换到下一个（用于 ended 自动连播 / 全屏滑动）
+    function switchToNext(index) {
+        goTo(index);
+    }
+
+    // 监听滚动（上下滑动）
+    var scrollTimer = null;
+    function handleScroll() {
+        if (scrollTimer) clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(function() {
+            if (scrollLock) return;
+            var viewTop = feed.scrollTop;
+            var viewH = feed.clientHeight;
+            var center = viewTop + viewH / 2;
+            var bestIdx = 0;
+            var bestDist = Infinity;
+            items.forEach(function(it, idx) {
+                var mid = it.offsetTop + it.offsetHeight / 2;
+                var d = Math.abs(mid - center);
+                if (d < bestDist) { bestDist = d; bestIdx = idx; }
+            });
+            if (bestIdx !== currentIndex) playAt(bestIdx);
+        }, 120);
+    }
+    feed.addEventListener('scroll', handleScroll);
+
+    // 鼠标滚轮支持（同时监听 document 以兼容全屏）
+    var wheelLockUntil = 0;
+    function handleWheel(e) {
+        var now = Date.now();
+        if (now < wheelLockUntil) { e.preventDefault(); return; }
+        if (Math.abs(e.deltaY) < 30) return;
+        e.preventDefault();
+        wheelLockUntil = now + 650;
+        if (e.deltaY > 0) switchToNext(currentIndex + 1);
+        else switchToNext(currentIndex - 1);
+    }
+    feed.addEventListener('wheel', handleWheel, {passive: false});
+
+    // 触摸上下滑动支持（移动端）
+    var touchStartY = null;
+    var touchStartX = null;
+    var touchEndY = null;
+    var touchEndX = null;
+    function handleTouchStart(e) {
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+    }
+    function handleTouchMove(e) {
+        touchEndY = e.touches[0].clientY;
+        touchEndX = e.touches[0].clientX;
+    }
+    function handleTouchEnd() {
+        if (touchStartY === null || touchEndY === null) return;
+        var dy = touchStartY - touchEndY;
+        var dx = (touchStartX !== null && touchEndX !== null) ? Math.abs(touchStartX - touchEndX) : 0;
+        if (Math.abs(dy) > 50 && Math.abs(dy) > dx) {
+            if (dy > 0) switchToNext(currentIndex + 1);
+            else switchToNext(currentIndex - 1);
+        }
+        touchStartY = null; touchStartX = null; touchEndY = null; touchEndX = null;
+    }
+    feed.addEventListener('touchstart', handleTouchStart, {passive: true});
+    feed.addEventListener('touchmove', handleTouchMove, {passive: true});
+    feed.addEventListener('touchend', handleTouchEnd);
+
+    // 键盘方向键支持
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); switchToNext(currentIndex + 1); }
+        if (e.key === 'ArrowUp')   { e.preventDefault(); switchToNext(currentIndex - 1); }
+    });
+
+    // 3 秒后自动播放第一个（避免自动播放被拦截先 muted）
+    // 如果开启了随机播放，先打乱顺序
+    if (randomPlay && items.length > 1) {
+        setTimeout(function() { shuffleFeed(); }, 100);
+        setTimeout(function() { playAt(0); }, 400);
+    } else {
+        setTimeout(function() { playAt(0); }, 300);
+    }
+
+    // 隐藏提示
+    setTimeout(function() {
+        var h = document.getElementById('shortsHint');
+        if (h) h.style.opacity = '0';
+    }, 5000);
+})();
+
+// 全屏切换（全屏整个 shorts-feed，保持滑动切换可用）
+function toggleFullscreen(btn) {
+    var feedEl = document.getElementById('shortsFeed');
+    if (!feedEl) return;
+    var icon = btn.querySelector('i');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        if (icon) icon.className = 'bi bi-fullscreen';
+    } else {
+        if (feedEl.requestFullscreen) feedEl.requestFullscreen();
+        else if (feedEl.webkitRequestFullscreen) feedEl.webkitRequestFullscreen();
+        if (icon) icon.className = 'bi bi-fullscreen-exit';
+    }
+}
+
+// 监听全屏状态变化，更新图标
+document.addEventListener('fullscreenchange', updateFsIcons);
+document.addEventListener('webkitfullscreenchange', updateFsIcons);
+function updateFsIcons() {
+    var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    document.querySelectorAll('.short-fullscreen-btn i').forEach(function(icon) {
+        icon.className = isFs ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
+    });
+}
+
+// 进度条点击跳转
+function seekShortVideo(e, bar) {
+    var player = bar.closest('.short-video-container').querySelector('.short-video');
+    if (!player || !player.duration) return;
+    var rect = bar.getBoundingClientRect();
+    var pct = (e.clientX - rect.left) / rect.width;
+    if (pct < 0) pct = 0;
+    if (pct > 1) pct = 1;
+    player.currentTime = pct * player.duration;
+}
+
+function shareShort(videoId) {
+    var url = location.origin + '/video/' + videoId;
+    if (navigator.share) {
+        navigator.share({url: url}).catch(function(){});
+        return;
+    }
+    try {
+        navigator.clipboard.writeText(url).then(function(){
+            alert('链接已复制到剪贴板');
+        }).catch(function(){
+            prompt('请复制下方链接：', url);
+        });
+    } catch(e) {
+        prompt('请复制下方链接：', url);
+    }
+}
+</script>
+{% endblock %}
