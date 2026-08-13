@@ -79,7 +79,7 @@
 <video width="320" height="240" controls>
 <source src="assets/video.mp4" type="video/mp4">
 </video>
-
+<video src="assets/video.mp4"></video>
 - APP初始开发阶段保留了三个功能不太相同的版本，具体区分如下，V1/V2版本项目代码已删除，无法维护更新，后续只更新V3版本
 
 | 安装包名称 | 区别 | 参考图 |
