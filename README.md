@@ -77,7 +77,17 @@
 ![17](assets/img_17.png)
 ![18](assets/img_18.png)
 <div align="center">
-  <video src="./assets/video.mp4" width="750" controls></video>
+  <video 
+    src="https://raw.githubusercontent.com/297118506/video_site/main/assets/video.mp4" 
+    width="80%" 
+    controls 
+    muted 
+    loop
+  >
+    浏览器不支持视频播放，点击下方链接下载观看：
+    <br>
+    <a href="https://github.com/297118506/video_site/blob/main/assets/video.mp4">短视频演示视频</a>
+  </video>
   <p>短视频播放演示</p>
 </div>
 - APP初始开发阶段保留了三个功能不太相同的版本，具体区分如下，V1/V2版本项目代码已删除，无法维护更新，后续只更新V3版本
