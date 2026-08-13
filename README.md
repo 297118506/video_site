@@ -76,10 +76,10 @@
 ![16](assets/img_16.png)
 ![17](assets/img_17.png)
 ![18](assets/img_18.png)
-<video width="320" height="240" controls>
-<source src="assets/video.mp4" type="video/mp4">
-</video>
-<video src="assets/video.mp4"></video>
+<div align="center">
+  <video src="./assets/video.mp4" width="750" controls></video>
+  <p>短视频播放演示</p>
+</div>
 - APP初始开发阶段保留了三个功能不太相同的版本，具体区分如下，V1/V2版本项目代码已删除，无法维护更新，后续只更新V3版本
 
 | 安装包名称 | 区别 | 参考图 |
