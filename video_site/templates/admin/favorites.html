@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}收藏管理 - 后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            <div class="card">
+                <div class="card-header">管理菜单</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+                    <a href="{{ url_for('admin_videos') }}" class="list-group-item list-group-item-action"><i class="bi bi-film"></i> 视频管理</a>
+                    <a href="{{ url_for('admin_shorts') }}" class="list-group-item list-group-item-action{% if active_tab == 'shorts_admin' %} active{% endif %}"><i class="bi bi-youtube"></i> 短视频管理</a>
+                    <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder"></i> 分类管理</a>
+                    <a href="{{ url_for('admin_short_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-symlink"></i> 短·分类管理</a>
+                    <a href="{{ url_for('admin_series') }}" class="list-group-item list-group-item-action"><i class="bi bi-collection"></i> 系列管理</a>
+                    <a href="{{ url_for('admin_favorites') }}" class="list-group-item list-group-item-action active"><i class="bi bi-star"></i> 收藏管理</a>
+                    <a href="{{ url_for('admin_openlist') }}" class="list-group-item list-group-item-action"><i class="bi bi-cloud"></i> OpenList管理</a>
+                    <a href="{{ url_for('admin_local_import') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-plus"></i> 本地视频导入</a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action"><i class="bi bi-people"></i> 用户管理</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-star"></i> 收藏管理</h2>
+                <button onclick="batchDeleteAll()" class="btn btn-outline-danger">
+                    <i class="bi bi-trash3"></i> 全部删除
+                </button>
+            </div>
+
+            <!-- 搜索框 -->
+            <div class="card mb-3">
+                <div class="card-header">搜索收藏</div>
+                <div class="card-body">
+                    <form id="searchForm" class="row g-2 align-items-end" method="GET" action="{{ url_for('admin_favorites') }}">
+                        <div class="col-md-8">
+                            <label class="form-label">关键词</label>
+                            <input type="text" name="q" class="form-control" value="{{ keyword or '' }}" placeholder="搜索用户名或视频标题">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-search"></i> 搜索
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 批量删除栏 -->
+            <div class="batch-delete-bar" id="batchDeleteBar" style="display:none;">
+                <div class="selected-count">已选择 <span id="selectedCount">0</span> 个收藏</div>
+                <button class="btn btn-sm btn-danger" onclick="batchDelete()">
+                    <i class="bi bi-trash"></i> 批量删除
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                    取消选择
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">收藏列表</div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;">
+                                    <input type="checkbox" class="video-list-checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                                </th>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>视频标题</th>
+                                <th>类型</th>
+                                <th>收藏时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fav in favorites %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="video-list-checkbox favorite-check" value="{{ fav.id }}" onchange="updateSelection()">
+                                </td>
+                                <td>{{ fav.id }}</td>
+                                <td>{{ fav.username or ('用户#' ~ fav.user_id) }}</td>
+                                <td>
+                                    <!-- 视频标题：如果有封面则显示缩略图 -->
+                                    <div class="d-flex align-items-center">
+                                        {% if fav.cover %}
+                                        <img src="{{ fav.cover }}" alt="封面" style="width:48px;height:32px;object-fit:cover;border-radius:4px;margin-right:8px;">
+                                        {% endif %}
+                                        <span>{{ fav.title or ('视频#' ~ fav.video_id) }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if fav.is_short_video == 1 %}
+                                    <span class="badge bg-warning text-dark">短视频</span>
+                                    {% else %}
+                                    <span class="badge bg-primary">普通视频</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ fav.created_at }}</td>
+                                <td>
+                                    <button onclick="deleteFavorite({{ fav.id }})" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if not favorites %}
+                <div class="text-center py-4 text-muted">暂无收藏记录</div>
+                {% endif %}
+
+                {% if total_pages > 1 %}
+                <div class="pagination">
+                    <span class="pagination-info">共 {{ total }} 条收藏</span>
+                    <button onclick="changePage({{ page - 1 }})" {% if page <= 1 %}disabled{% endif %}>
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                            <button onclick="changePage({{ p }})" class="{% if p == page %}active{% endif %}">{{ p }}</button>
+                        {% elif p == page - 3 or p == page + 3 %}
+                            <span>...</span>
+                        {% endif %}
+                    {% endfor %}
+                    <button onclick="changePage({{ page + 1 }})" {% if page >= total_pages %}disabled{% endif %}>
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    <span class="pagination-info">第 {{ page }} / {{ total_pages }} 页</span>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+var selectedIds = [];
+var currentPage = {{ page }};
+var totalPages = {{ total_pages }};
+
+// 删除单条收藏
+function deleteFavorite(id) {
+    if (!confirm('确定删除该收藏记录？')) return;
+    fetch('/api/favorites/' + id, {
+        method: 'DELETE'
+    }).then(r => r.json()).then(res => {
+        if (res.success) location.reload();
+        else alert(res.message || '删除失败');
+    }).catch(err => alert('请求失败: ' + err));
+}
+
+// 全选/取消全选
+function toggleSelectAll(checkbox) {
+    var checkboxes = document.querySelectorAll('.favorite-check');
+    selectedIds = [];
+    checkboxes.forEach(function(cb) {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedIds.push(parseInt(cb.value));
+        }
+    });
+    updateSelectionUI();
+}
+
+// 更新已选中的 ID 列表
+function updateSelection() {
+    var checkboxes = document.querySelectorAll('.favorite-check:checked');
+    selectedIds = [];
+    checkboxes.forEach(function(cb) {
+        selectedIds.push(parseInt(cb.value));
+    });
+
+    var allCheckboxes = document.querySelectorAll('.favorite-check');
+    var selectAll = document.getElementById('selectAll');
+    selectAll.checked = selectedIds.length === allCheckboxes.length && allCheckboxes.length > 0;
+
+    updateSelectionUI();
+}
+
+// 更新批量删除栏 UI
+function updateSelectionUI() {
+    var bar = document.getElementById('batchDeleteBar');
+    var countSpan = document.getElementById('selectedCount');
+    if (selectedIds.length > 0) {
+        bar.style.display = 'flex';
+        countSpan.textContent = selectedIds.length;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+// 清空选择
+function clearSelection() {
+    selectedIds = [];
+    document.querySelectorAll('.favorite-check').forEach(function(cb) {
+        cb.checked = false;
+    });
+    document.getElementById('selectAll').checked = false;
+    updateSelectionUI();
+}
+
+function _getDeleteRedirectPage() {
+    if (currentPage > 1 && currentPage >= totalPages) {
+        return currentPage - 1;
+    }
+    return currentPage;
+}
+
+// 批量删除
+function batchDelete() {
+    if (selectedIds.length === 0) {
+        alert('请先选择要删除的收藏');
+        return;
+    }
+    if (!confirm('确定删除选中的 ' + selectedIds.length + ' 个收藏？')) return;
+
+    fetch('/api/favorites/batch_delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({favorite_ids: selectedIds})
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            alert('成功删除 ' + (data.deleted_count || selectedIds.length) + ' 个收藏');
+            var targetPage = _getDeleteRedirectPage();
+            var url = new URL(window.location.href);
+            url.searchParams.set('page', targetPage);
+            window.location.href = url.toString();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    }).catch(err => alert('请求失败: ' + err));
+}
+
+// 全部删除
+function batchDeleteAll() {
+    if (!confirm('确定删除全部收藏？')) return;
+    if (!confirm('再次确认：将删除所有收藏记录，确定继续？')) return;
+
+    fetch('/api/favorites/batch_delete_all', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            alert('成功删除全部收藏（共 ' + data.deleted_count + ' 个）');
+            var url = new URL(window.location.href);
+            url.searchParams.set('page', '1');
+            window.location.href = url.toString();
+        } else {
+            alert('删除失败: ' + (data.message || '未知错误'));
+        }
+    }).catch(err => alert('请求失败: ' + err));
+}
+
+// 翻页（保留搜索关键词）
+function changePage(newPage) {
+    if (newPage < 1) return;
+    var url = new URL(window.location.href);
+    url.searchParams.set('page', newPage);
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}
