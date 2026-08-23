@@ -77,6 +77,8 @@
 ![15](assets/img_15.png)
 ![16](assets/img_16.png)
 ![17](assets/img_17.png)
+- APP演示视频：
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=117145350506555&bvid=BV1Fu8h6YEAv&cid=41195864499&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
 
 - APP初始开发阶段保留了三个功能不太相同的版本，具体区分如下，V1/V2版本项目代码已删除，无法维护更新，后续只更新V3版本
 
