@@ -1,0 +1,443 @@
+{% extends 'base.html' %}
+
+{% block title %}数据库管理 - 后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            <div class="card">
+                <div class="card-header">管理菜单</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+                    <a href="{{ url_for('admin_videos') }}" class="list-group-item list-group-item-action"><i class="bi bi-film"></i> 视频管理</a>
+                    <a href="{{ url_for('admin_shorts') }}" class="list-group-item list-group-item-action"><i class="bi bi-youtube"></i> 短视频管理</a>
+                    <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder"></i> 分类管理</a>
+                    <a href="{{ url_for('admin_short_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-symlink"></i> 短·分类管理</a>
+                    <a href="{{ url_for('admin_series') }}" class="list-group-item list-group-item-action"><i class="bi bi-collection"></i> 系列管理</a>
+                    <a href="{{ url_for('admin_favorites') }}" class="list-group-item list-group-item-action"><i class="bi bi-star"></i> 收藏管理</a>
+                    <a href="{{ url_for('admin_openlist') }}" class="list-group-item list-group-item-action"><i class="bi bi-cloud"></i> OpenList管理</a>
+                    <a href="{{ url_for('admin_local_import') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-plus"></i> 本地视频导入</a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action"><i class="bi bi-people"></i> 用户管理</a>
+                    <a href="{{ url_for('admin_db_management') }}" class="list-group-item list-group-item-action active"><i class="bi bi-database"></i> 数据库管理</a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-md-10">
+            <h2 class="mb-4"><i class="bi bi-database"></i> 数据库管理</h2>
+
+            <!-- 数据库概览 -->
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-info-circle"></i> 当前数据库概览</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <div class="border rounded p-3 text-center h-100">
+                                <div class="fs-5 fw-bold text-primary">{{ (db_stats.file_size / 1024 / 1024)|round(2) }} MB</div>
+                                <div class="text-muted small">数据库文件大小</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="border rounded p-3 text-center h-100">
+                                <div class="fs-5 fw-bold text-primary">{{ db_stats.tables.videos or 0 }}</div>
+                                <div class="text-muted small">视频总数（含短视频）</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="border rounded p-3 text-center h-100">
+                                <div class="fs-5 fw-bold text-primary">{{ db_stats.tables.users or 0 }}</div>
+                                <div class="text-muted small">用户数</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        {% set table_labels = {
+                            'videos': '视频', 'series': '系列', 'categories': '分类',
+                            'short_categories': '短视频分类', 'users': '用户',
+                            'openlist_accounts': 'OpenList账号', 'user_category_permissions': '用户分类权限',
+                            'favorites': '收藏', 'user_short_played': '短视频播放标记'
+                        } %}
+                        {% for table, label in table_labels.items() %}
+                        <div class="col-6 col-md-4 col-lg-3 mb-2">
+                            <div class="d-flex justify-content-between border rounded px-3 py-2">
+                                <span class="text-muted">{{ label }}</span>
+                                <span class="fw-bold">{{ db_stats.tables[table] or 0 }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 导出备份 -->
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-download"></i> 导出数据库备份</div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        将当前数据库完整导出为 <code>.db</code> 备份文件并下载。导出采用 SQLite 一致性快照，不影响正在运行的服务。
+                    </p>
+                    <a href="{{ url_for('admin_db_export') }}" class="btn btn-primary">
+                        <i class="bi bi-download"></i> 导出并下载数据库备份
+                    </a>
+                </div>
+            </div>
+
+            <!-- 导入恢复 -->
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning bg-opacity-10"><i class="bi bi-upload"></i> 导入数据库备份（恢复）</div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>危险操作：</strong>导入将覆盖当前数据库中的对应数据。每次导入前系统会自动在
+                        <code>data/import_backups/</code> 目录保存一份导入前的安全备份。
+                    </div>
+
+                    <form id="importForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">选择备份文件</label>
+                            <input type="file" name="db_file" id="dbFile" class="form-control" accept=".db" required>
+                            <div class="form-text">仅支持本系统导出的 <code>.db</code> 备份文件，最大 512MB</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">用户信息</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="includeUsers" name="include_users" value="1">
+                                <label class="form-check-label" for="includeUsers">
+                                    同时导入备份中的用户信息（用户账号、密码、分类权限、收藏、播放记录）
+                                </label>
+                            </div>
+                            <div class="form-text">
+                                不勾选：仅恢复视频、系列、分类、OpenList账号等内容数据，本机的用户和权限设置保持不变。<br>
+                                勾选：完整恢复（含用户信息），导入完成后需使用备份中的账号密码重新登录。
+                            </div>
+                        </div>
+
+                        <div class="mb-3 d-none" id="progressWrap">
+                            <label class="form-label">上传进度</label>
+                            <div class="progress" style="height: 22px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                     id="progressBar" role="progressbar" style="width: 0%">0%</div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-warning" id="importBtn">
+                            <i class="bi bi-upload"></i> 导入并恢复数据库
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 跨设备同步：接收设置 -->
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-arrow-down-square"></i> 跨设备同步 — 接收设置（本机作为接收端）</div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        本机作为「接收端」时的设置。发送端推送数据时会携带同步密钥，与本机设置的密钥比对通过后才接收。<br>
+                        下方开关决定本机接收同步时是否覆盖对应数据，每个设备自行决定。
+                    </p>
+                    <form id="receiveConfigForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">同步接收密钥</label>
+                            <div class="input-group">
+                                <input type="text" name="api_key" id="rcApiKey" class="form-control" placeholder="设置一个用于接收同步的密钥">
+                                <button type="button" class="btn btn-outline-secondary" onclick="genReceiveKey()"><i class="bi bi-shuffle"></i> 随机生成</button>
+                            </div>
+                            <div class="form-text">发送端推送时需填写此密钥。两台设备使用 HTTPS 可保证公网传输安全。</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label fw-bold">接收时覆盖的数据</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rcAcceptUsers" name="accept_users" value="1">
+                                <label class="form-check-label" for="rcAcceptUsers">用户信息（账号、密码、分类权限）</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rcAcceptFavorites" name="accept_favorites" value="1">
+                                <label class="form-check-label" for="rcAcceptFavorites">用户收藏</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rcAcceptPlayed" name="accept_played" value="1">
+                                <label class="form-check-label" for="rcAcceptPlayed">短视频播放标记</label>
+                            </div>
+                            <div class="form-text">视频、系列、分类、OpenList账号等内容数据始终同步。未勾选用户信息时，收藏和播放标记会按用户名自动重映射到本机用户。</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> 保存接收设置</button>
+                        <span id="rcSaveTip" class="text-success ms-2"></span>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 跨设备同步：推送 -->
+            <div class="card mb-4">
+                <div class="card-header"><i class="bi bi-arrow-up-square"></i> 跨设备同步 — 推送到远程设备（本机作为发送端）</div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        推送时本机数据快照会：<b>自动过滤本地导入视频</b>（其文件在本机，远程无法播放），并按下方设置对 OpenList 播放链接做批量查找替换。接收端按其自身开关决定是否覆盖用户/收藏/播放标记。
+                    </div>
+                    <form id="pushForm">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label fw-bold">目标服务器地址</label>
+                                <div class="input-group">
+                                    <input type="text" name="target_url" id="pushTargetUrl" class="form-control" placeholder="https://设备B的地址:端口">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="选择历史输入"><i class="bi bi-clock-history"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="histMenu_target_url" style="min-width:280px;"></ul>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">目标同步密钥</label>
+                                <div class="input-group">
+                                    <input type="text" name="target_api_key" id="pushTargetKey" class="form-control" placeholder="设备B的接收密钥">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="选择历史输入"><i class="bi bi-clock-history"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="histMenu_target_api_key" style="min-width:220px;"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label fw-bold">OpenList 链接 — 查找</label>
+                                <div class="input-group">
+                                    <input type="text" name="url_find" id="pushUrlFind" class="form-control" placeholder="如旧服务器地址/端口/路径">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="选择历史输入"><i class="bi bi-clock-history"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="histMenu_url_find" style="min-width:220px;"></ul>
+                                </div>
+                            </div>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label fw-bold">OpenList 链接 — 替换为</label>
+                                <div class="input-group">
+                                    <input type="text" name="url_replace" id="pushUrlReplace" class="form-control" placeholder="如新服务器地址/端口/路径">
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="选择历史输入"><i class="bi bi-clock-history"></i></button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="histMenu_url_replace" style="min-width:220px;"></ul>
+                                </div>
+                            </div>
+                            <div class="col-md-2 mb-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-success w-100" id="pushBtn">
+                                    <i class="bi bi-cloud-upload"></i> 推送
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-text">查找/替换为空时不做链接替换。两个输入框都可填入地址片段（如域名、端口、路径前缀），将批量替换所有视频的播放链接与封面链接。每次推送的输入会自动保存为历史记录，点击输入框右侧 <i class="bi bi-clock-history"></i> 按钮可选择历史输入。</div>
+                    </form>
+                    <div class="mt-2 d-none" id="pushResult"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+document.getElementById('importForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var fileInput = document.getElementById('dbFile');
+    if (!fileInput.files.length) { alert('请选择要导入的数据库备份文件'); return; }
+
+    var includeUsers = document.getElementById('includeUsers').checked;
+    var tip = includeUsers
+        ? '即将完整恢复数据库（含用户信息）。\n当前所有数据（包括用户账号密码）都将被备份文件中的数据覆盖，且导入后需要重新登录。\n\n确定继续吗？'
+        : '即将恢复数据库内容数据（视频/系列/分类/OpenList账号），本机用户信息保持不变。\n当前对应数据将被备份文件中的数据覆盖。\n\n确定继续吗？';
+    if (!confirm(tip)) return;
+
+    var formData = new FormData();
+    formData.append('db_file', fileInput.files[0]);
+    if (includeUsers) formData.append('include_users', '1');
+
+    var btn = document.getElementById('importBtn');
+    var progressWrap = document.getElementById('progressWrap');
+    var progressBar = document.getElementById('progressBar');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 导入中，请勿关闭页面...';
+    progressWrap.classList.remove('d-none');
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '{{ url_for("api_db_import") }}');
+    xhr.upload.addEventListener('progress', function(evt) {
+        if (evt.lengthComputable) {
+            var pct = Math.round(evt.loaded / evt.total * 100);
+            progressBar.style.width = pct + '%';
+            progressBar.textContent = pct + '%';
+        }
+    });
+    xhr.addEventListener('load', function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-upload"></i> 导入并恢复数据库';
+        try {
+            var res = JSON.parse(xhr.responseText);
+            if (res.success) {
+                alert('导入成功！' + res.message);
+                if (res.relogin) {
+                    window.location.href = '{{ url_for("login") }}';
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                alert('导入失败：' + (res.message || '未知错误'));
+                progressWrap.classList.add('d-none');
+                progressBar.style.width = '0%';
+                progressBar.textContent = '0%';
+            }
+        } catch (err) {
+            alert('服务器返回异常（HTTP ' + xhr.status + '），请检查文件是否超过大小限制');
+            progressWrap.classList.add('d-none');
+        }
+    });
+    xhr.addEventListener('error', function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-upload"></i> 导入并恢复数据库';
+        alert('网络错误，导入失败');
+        progressWrap.classList.add('d-none');
+    });
+    xhr.send(formData);
+});
+
+// ===== 跨设备同步 =====
+function api(path, method, body) {
+    var opts = {method: method || 'GET', headers: {'Content-Type': 'application/json'}};
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(path, opts).then(function(r){ return r.json(); });
+}
+
+// 接收设置：加载
+api('/api/sync/receive_config').then(function(res){
+    if (res.success && res.config) {
+        document.getElementById('rcApiKey').value = res.config.api_key || '';
+        document.getElementById('rcAcceptUsers').checked = !!res.config.accept_users;
+        document.getElementById('rcAcceptFavorites').checked = !!res.config.accept_favorites;
+        document.getElementById('rcAcceptPlayed').checked = !!res.config.accept_played;
+    }
+});
+
+function genReceiveKey() {
+    api('/api/sync/gen_key').then(function(res){
+        if (res.success) document.getElementById('rcApiKey').value = res.key;
+    });
+}
+
+document.getElementById('receiveConfigForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    api('/api/sync/receive_config', 'POST', {
+        api_key: document.getElementById('rcApiKey').value,
+        accept_users: document.getElementById('rcAcceptUsers').checked,
+        accept_favorites: document.getElementById('rcAcceptFavorites').checked,
+        accept_played: document.getElementById('rcAcceptPlayed').checked
+    }).then(function(res){
+        var tip = document.getElementById('rcSaveTip');
+        tip.textContent = res.success ? '已保存' : (res.message || '保存失败');
+        tip.className = res.success ? 'text-success ms-2' : 'text-danger ms-2';
+        setTimeout(function(){ tip.textContent = ''; }, 2000);
+    });
+});
+
+// 推送设置：加载
+api('/api/sync/send_config').then(function(res){
+    if (res.success && res.config) {
+        document.getElementById('pushTargetUrl').value = res.config.target_url || '';
+        document.getElementById('pushTargetKey').value = res.config.target_api_key || '';
+        document.getElementById('pushUrlFind').value = res.config.url_find || '';
+        document.getElementById('pushUrlReplace').value = res.config.url_replace || '';
+    }
+});
+
+document.getElementById('pushForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!confirm('即将将本机数据库推送到远程设备并覆盖其数据，确认继续吗？')) return;
+    var btn = document.getElementById('pushBtn');
+    var result = document.getElementById('pushResult');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 推送中...';
+    result.classList.remove('d-none');
+    result.innerHTML = '<div class="alert alert-secondary mb-0">正在生成快照并推送，数据量较大时请耐心等待...</div>';
+
+    api('/api/sync/push', 'POST', {
+        target_url: document.getElementById('pushTargetUrl').value,
+        target_api_key: document.getElementById('pushTargetKey').value,
+        url_find: document.getElementById('pushUrlFind').value,
+        url_replace: document.getElementById('pushUrlReplace').value
+    }).then(function(res){
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload"></i> 推送';
+        var cls = res.success ? 'alert-success' : 'alert-danger';
+        var extra = '';
+        if (res._removed_local !== undefined) extra += '<br>已过滤本地视频 ' + res._removed_local + ' 条';
+        if (res._http_status) extra += '（远程 HTTP ' + res._http_status + '）';
+        result.innerHTML = '<div class="alert ' + cls + ' mb-0"><i class="bi bi-' + (res.success ? 'check-circle' : 'x-circle') + '"></i> ' + (res.message || JSON.stringify(res)) + extra + '</div>';
+        loadPushHistory();
+    }).catch(function(err){
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-cloud-upload"></i> 推送';
+        result.innerHTML = '<div class="alert alert-danger mb-0">请求失败：' + err + '</div>';
+        loadPushHistory();
+    });
+});
+
+// ===== 推送输入历史（下拉选择）=====
+var PUSH_HISTORY_FIELDS = ['target_url', 'target_api_key', 'url_find', 'url_replace'];
+var PUSH_FIELD_INPUT = {
+    target_url: 'pushTargetUrl',
+    target_api_key: 'pushTargetKey',
+    url_find: 'pushUrlFind',
+    url_replace: 'pushUrlReplace'
+};
+var pushHistory = {};
+
+function loadPushHistory() {
+    api('/api/sync/push_history').then(function(res){
+        if (res.success && res.history) {
+            pushHistory = res.history;
+            buildPushHistoryMenus();
+        }
+    }).catch(function(){});
+}
+
+function buildPushHistoryMenus() {
+    PUSH_HISTORY_FIELDS.forEach(function(field){
+        var menu = document.getElementById('histMenu_' + field);
+        var input = document.getElementById(PUSH_FIELD_INPUT[field]);
+        if (!menu || !input) return;
+        menu.innerHTML = '';
+        var items = pushHistory[field] || [];
+        if (!items.length) {
+            var liEmpty = document.createElement('li');
+            var spanEmpty = document.createElement('span');
+            spanEmpty.className = 'dropdown-item text-muted small';
+            spanEmpty.textContent = '暂无历史记录（推送后自动保存）';
+            liEmpty.appendChild(spanEmpty);
+            menu.appendChild(liEmpty);
+            return;
+        }
+        items.forEach(function(val){
+            var li = document.createElement('li');
+            var a = document.createElement('a');
+            a.className = 'dropdown-item text-truncate';
+            a.href = 'javascript:void(0)';
+            a.title = val;
+            a.textContent = val;
+            a.style.maxWidth = '320px';
+            a.addEventListener('click', function(){ input.value = val; });
+            li.appendChild(a);
+            menu.appendChild(li);
+        });
+        var sep = document.createElement('li');
+        sep.innerHTML = '<hr class="dropdown-divider">';
+        menu.appendChild(sep);
+        var liClear = document.createElement('li');
+        var aClear = document.createElement('a');
+        aClear.className = 'dropdown-item text-danger small';
+        aClear.href = 'javascript:void(0)';
+        aClear.innerHTML = '<i class="bi bi-trash"></i> 清空该字段历史';
+        aClear.addEventListener('click', function(){
+            if (!confirm('确定清空该字段的历史记录？')) return;
+            fetch('/api/sync/push_history?field=' + encodeURIComponent(field), {method: 'DELETE'})
+                .then(function(r){ return r.json(); })
+                .then(function(){ loadPushHistory(); })
+                .catch(function(){});
+        });
+        liClear.appendChild(aClear);
+        menu.appendChild(liClear);
+    });
+}
+
+loadPushHistory();
+</script>
+{% endblock %}

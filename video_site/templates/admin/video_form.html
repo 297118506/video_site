@@ -1,0 +1,505 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if video.id %}编辑{% else %}添加{% endif %}{% if is_shorts_admin %}短视频{% else %}视频{% endif %} - 后台{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            <div class="card">
+                <div class="card-header">管理菜单</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action"><i class="bi bi-speedometer2"></i> 仪表盘</a>
+                    <a href="{{ url_for('admin_videos') }}" class="list-group-item list-group-item-action{% if is_shorts_admin %}{% else %} active{% endif %}"><i class="bi bi-film"></i> 视频管理</a>
+                    <a href="{{ url_for('admin_shorts') }}" class="list-group-item list-group-item-action{% if is_shorts_admin %} active{% endif %}"><i class="bi bi-youtube"></i> 短视频管理</a>
+                    <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder"></i> 分类管理</a>
+                    <a href="{{ url_for('admin_short_categories') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-symlink"></i> 短·分类管理</a>
+                    <a href="{{ url_for('admin_series') }}" class="list-group-item list-group-item-action"><i class="bi bi-collection"></i> 系列管理</a>
+                    <a href="{{ url_for('admin_favorites') }}" class="list-group-item list-group-item-action"><i class="bi bi-star"></i> 收藏管理</a>
+                    <a href="{{ url_for('admin_openlist') }}" class="list-group-item list-group-item-action"><i class="bi bi-cloud"></i> OpenList管理</a>
+                    <a href="{{ url_for('admin_local_import') }}" class="list-group-item list-group-item-action"><i class="bi bi-folder-plus"></i> 本地视频导入</a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action"><i class="bi bi-people"></i> 用户管理</a>
+                    <a href="{{ url_for('admin_db_management') }}" class="list-group-item list-group-item-action"><i class="bi bi-database"></i> 数据库管理</a>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{% if video.id %}<i class="bi bi-pencil"></i> 编辑{% else %}<i class="bi bi-plus"></i> 添加{% endif %}{% if is_shorts_admin %}短视频{% else %}视频{% endif %}</h2>
+                <a href="{{ url_for('admin_shorts' if is_shorts_admin else 'admin_videos') }}" class="btn btn-secondary">返回列表</a>
+            </div>
+            
+            {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+            
+            <form method="POST" id="videoForm">
+                <div class="card mb-3">
+                    <div class="card-header">基本信息</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">视频标题 <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control" required value="{{ video.title or '' }}">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">排序</label>
+                                <input type="number" name="sort_order" class="form-control" value="{{ video.sort_order or 0 }}">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">视频描述</label>
+                            <textarea name="description" class="form-control" rows="3">{{ video.description or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">视频来源</div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">视频链接 <span class="text-danger">*</span></label>
+                                <input type="url" name="video_url" id="videoUrl" class="form-control" required 
+                                       value="{{ video.video_url or '' }}" placeholder="https://...">
+                                <div class="form-text">支持 mp4, mkv, m3u8, flv 等格式的直链</div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">来源</label>
+                                <select name="source" class="form-select">
+                                    <option value="openlist" {% if video.source == 'openlist' %}selected{% endif %}>OpenList</option>
+                                    <option value="direct" {% if video.source == 'direct' %}selected{% endif %}>直链</option>
+                                    <option value="other" {% if video.source == 'other' %}selected{% endif %}>其他</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">视频类型</label>
+                                <input type="text" name="video_type" id="videoType" class="form-control" 
+                                       value="{{ video.video_type or '' }}" placeholder="mp4 / mkv / m3u8 / flv">
+                            </div>
+                        </div>
+                        
+                        {% if openlist_accounts %}
+                        <hr>
+                        <h6><i class="bi bi-cloud"></i> 使用OpenList选择文件（可选）</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">选择OpenList账户</label>
+                                <select id="openlistAccount" class="form-select" onchange="onFormAccountChanged()">
+                                    <option value="">-- 选择账户 --</option>
+                                    {% for acc in openlist_accounts %}
+                                    <option value="{{ acc.id }}">{{ acc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">当前浏览路径</label>
+                                <div class="input-group">
+                                    <input type="text" id="openlistPath" class="form-control" value="/" readonly>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('openlistPath').readOnly = false; document.getElementById('openlistPath').focus();" title="手动编辑">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">在下方目录浏览器中导航并选择视频文件</div>
+                            </div>
+                        </div>
+                        
+                        <div id="openlistBrowserArea" class="mb-3" style="display:none;">
+                            <div class="border rounded">
+                                <div class="d-flex align-items-center p-2 bg-light border-bottom">
+                                    <button id="formGoUpBtn" class="btn btn-sm btn-outline-secondary me-2" onclick="formGoUp()" disabled>
+                                        <i class="bi bi-arrow-up"></i> 返回上级
+                                    </button>
+                                    <nav aria-label="breadcrumb">
+                                        <ol class="breadcrumb mb-0" id="formBreadcrumbList">
+                                            <li class="breadcrumb-item active">根目录</li>
+                                        </ol>
+                                    </nav>
+                                    <span class="ms-auto text-muted small" id="formFileCount"></span>
+                                </div>
+                                <div id="formFileList" style="max-height:350px;overflow-y:auto;"></div>
+                            </div>
+                        </div>
+                        <div id="openlistNoAccountHint" class="text-center py-3 text-muted">
+                            <i class="bi bi-folder2-open"></i> 请先选择一个OpenList账户来浏览目录
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">封面与分类</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">封面图片URL</label>
+                                <input type="url" name="cover" id="coverInput" class="form-control" value="{{ video.cover or '' }}" placeholder="https://...">
+                                <div id="coverPreview" class="mt-2" style="display:none;">
+                                    <img id="coverPreviewImg" src="" class="img-thumbnail" style="max-height: 120px;">
+                                </div>
+                                {% if video.cover %}
+                                <div class="mt-2">
+                                    <img src="{{ video.cover }}" class="img-thumbnail" style="max-height: 100px;" id="existingCoverPreview">
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">分类</label>
+                                <select name="category_id" class="form-select">
+                                    <option value="0">未分类</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {% if video.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">系列设置</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">是否属于系列</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="is_series" id="isSeries" value="1" 
+                                           {% if video.is_series %}checked{% endif %} onchange="toggleSeries()">
+                                    <label class="form-check-label" for="isSeries">设为系列视频</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">所属系列</label>
+                                <select name="series_id" id="seriesId" class="form-select" {% if not video.is_series %}disabled{% endif %}>
+                                    <option value="">-- 选择系列 --</option>
+                                    {% for s in series_list %}
+                                    <option value="{{ s.id }}" {% if video.series_id == s.id %}selected{% endif %}>{{ s.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">集数</label>
+                                <input type="number" name="episode_number" id="episodeNumber" class="form-control" 
+                                       value="{{ video.episode_number or 0 }}" {% if not video.is_series %}disabled{% endif %}>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">时长</label>
+                            <input type="text" name="duration" class="form-control" value="{{ video.duration or '' }}" placeholder="如: 45:30">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="isShortVideo"
+                                       name="is_short_video" value="1"
+                                       {% if is_shorts_admin %}checked disabled{% elif video.get('is_short_video') %}checked{% endif %}>
+                                <label class="form-check-label" for="isShortVideo">仅在短视频模块显示（不在首页全部视频显示）</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check"></i> {% if video.id %}保存修改{% else %}创建视频{% endif %}
+                    </button>
+                    <a href="{{ url_for('admin_videos') }}" class="btn btn-secondary">取消</a>
+                </div>
+            </form>
+        </main>
+    </div>
+</div>
+
+<script>
+var formAccounts = {{ openlist_accounts|tojson }};
+var formCurrentPath = '/';
+var formPathStack = [];
+var formImageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'ico'];
+var formVideoExts = ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'm3u8', 'webm', 'ts', 'rmvb', 'm4v'];
+
+function toggleSeries() {
+    var checked = document.getElementById('isSeries').checked;
+    document.getElementById('seriesId').disabled = !checked;
+    document.getElementById('episodeNumber').disabled = !checked;
+}
+
+function onFormAccountChanged() {
+    var accountId = document.getElementById('openlistAccount').value;
+    if (!accountId) {
+        document.getElementById('openlistBrowserArea').style.display = 'none';
+        document.getElementById('openlistNoAccountHint').style.display = 'block';
+        document.getElementById('openlistPath').value = '/';
+        formCurrentPath = '/';
+        formPathStack = [];
+        return;
+    }
+    document.getElementById('openlistNoAccountHint').style.display = 'none';
+    document.getElementById('openlistBrowserArea').style.display = 'block';
+    formPathStack = [];
+    formLoadDirectory('/');
+}
+
+function formLoadDirectory(path) {
+    var accountId = document.getElementById('openlistAccount').value;
+    if (!accountId) return;
+    var acc = formAccounts.find(function(a) { return a.id == accountId; });
+    if (!acc) return;
+    
+    formCurrentPath = path;
+    document.getElementById('openlistPath').value = path;
+    
+    formUpdateBreadcrumb(path);
+    document.getElementById('formGoUpBtn').disabled = (formPathStack.length === 0);
+    
+    var fileListDiv = document.getElementById('formFileList');
+    fileListDiv.innerHTML = '<div class="text-center py-3 text-muted"><div class="spinner-border spinner-border-sm"></div> 加载中...</div>';
+    
+    fetch('/api/openlist/files', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account: acc, path: path})
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (!res.success) {
+            fileListDiv.innerHTML = '<div class="text-center py-3 text-danger">加载失败: ' + (res.message || '未知错误') + '</div>';
+            return;
+        }
+        
+        var dirs = [];
+        var videoFiles = [];
+        var imageFiles = [];
+        var otherFiles = [];
+        res.files.forEach(function(f) {
+            if (f.is_dir) dirs.push(f);
+            else {
+                var ext = f.name.split('.').pop().toLowerCase();
+                if (formVideoExts.indexOf(ext) !== -1) videoFiles.push(f);
+                else if (formImageExts.indexOf(ext) !== -1) imageFiles.push(f);
+                else otherFiles.push(f);
+            }
+        });
+        
+        document.getElementById('formFileCount').textContent = '共 ' + res.files.length + ' 项 (' + dirs.length + ' 文件夹, ' + videoFiles.length + ' 视频, ' + imageFiles.length + ' 图片)';
+        
+        var html = '';
+        
+        if (dirs.length === 0 && videoFiles.length === 0 && imageFiles.length === 0 && otherFiles.length === 0) {
+            html = '<div class="text-center py-4 text-muted">此目录为空</div>';
+        } else {
+            if (dirs.length > 0) {
+                html += '<div class="file-section-title px-3 py-1 bg-light text-muted small">文件夹</div>';
+                dirs.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                dirs.forEach(function(d) {
+                    var folderPath = (formCurrentPath === '/' ? '' : formCurrentPath) + '/' + d.name;
+                    html += '<div class="file-item d-flex align-items-center px-3 py-2 border-bottom hover-bg" style="cursor:pointer;" onclick="formNavigateTo(\'' + formEscapeHtml(folderPath) + '\')">' +
+                        '<i class="bi bi-folder-fill text-warning me-2"></i>' +
+                        '<span class="flex-grow-1">' + formEscapeHtml(d.name) + '</span>' +
+                        '<span class="text-muted small">文件夹</span>' +
+                        '<i class="bi bi-chevron-right text-muted ms-2"></i>' +
+                        '</div>';
+                });
+            }
+            
+            if (videoFiles.length > 0) {
+                html += '<div class="file-section-title px-3 py-1 bg-light text-muted small">视频文件（点击选择）</div>';
+                videoFiles.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                videoFiles.forEach(function(f) {
+                    var ext = f.name.split('.').pop().toLowerCase();
+                    var sizeStr = f.size ? formFormatSize(f.size) : '';
+                    html += '<div class="file-item d-flex align-items-center px-3 py-2 border-bottom hover-bg" style="cursor:pointer;" onclick="formSelectVideo(\'' + formEscapeHtml(f.full_path) + '\', \'' + ext + '\')">' +
+                        '<i class="bi bi-play-circle-fill text-primary me-2"></i>' +
+                        '<span class="flex-grow-1">' + formEscapeHtml(f.name) + '</span>' +
+                        '<span class="badge bg-primary me-1">视频</span>' +
+                        '<span class="text-muted small">' + sizeStr + '</span>' +
+                        '<i class="bi bi-check-circle text-success ms-2" style="display:none;"></i>' +
+                        '</div>';
+                });
+            }
+
+            if (imageFiles.length > 0) {
+                html += '<div class="file-section-title px-3 py-1 bg-light text-muted small">图片文件（点击设为封面）</div>';
+                imageFiles.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                imageFiles.forEach(function(f) {
+                    var sizeStr = f.size ? formFormatSize(f.size) : '';
+                    html += '<div class="file-item d-flex align-items-center px-3 py-2 border-bottom hover-bg" style="cursor:pointer;" onclick="formSelectImage(\'' + formEscapeHtml(f.full_path) + '\')">' +
+                        '<i class="bi bi-image text-info me-2"></i>' +
+                        '<span class="flex-grow-1">' + formEscapeHtml(f.name) + '</span>' +
+                        '<span class="badge bg-info me-1">图片</span>' +
+                        '<span class="text-muted small">' + sizeStr + '</span>' +
+                        '</div>';
+                });
+            }
+
+            if (otherFiles.length > 0) {
+                html += '<div class="file-section-title px-3 py-1 bg-light text-muted small">其他文件</div>';
+                otherFiles.sort(function(a, b) { return a.name.localeCompare(b.name); });
+                otherFiles.forEach(function(f) {
+                    var sizeStr = f.size ? formFormatSize(f.size) : '';
+                    html += '<div class="file-item d-flex align-items-center px-3 py-2 border-bottom">' +
+                        '<i class="bi bi-file-earmark text-muted me-2"></i>' +
+                        '<span class="flex-grow-1">' + formEscapeHtml(f.name) + '</span>' +
+                        '<span class="text-muted small">' + sizeStr + '</span>' +
+                        '</div>';
+                });
+            }
+        }
+        
+        fileListDiv.innerHTML = html;
+    }).catch(function(err) {
+        fileListDiv.innerHTML = '<div class="text-center py-3 text-danger">请求失败: ' + err + '</div>';
+    });
+}
+
+function formNavigateTo(path) {
+    formPathStack.push(formCurrentPath);
+    formLoadDirectory(path);
+}
+
+function formGoUp() {
+    if (formPathStack.length === 0) return;
+    formPathStack.pop();
+    var parentPath = formPathStack.length > 0 ? formPathStack[formPathStack.length - 1] : '/';
+    formLoadDirectory(parentPath);
+}
+
+function formUpdateBreadcrumb(path) {
+    var list = document.getElementById('formBreadcrumbList');
+    var parts = path.split('/').filter(function(p) { return p; });
+    
+    var html = '<li class="breadcrumb-item' + (parts.length === 0 ? ' active' : '') + '" onclick="formNavigateToRoot()" style="cursor:pointer;">根目录</li>';
+    
+    var accumulated = '';
+    for (var i = 0; i < parts.length; i++) {
+        accumulated += '/' + parts[i];
+        var isLast = (i === parts.length - 1);
+        if (isLast) {
+            html += '<li class="breadcrumb-item active">' + formEscapeHtml(parts[i]) + '</li>';
+        } else {
+            html += '<li class="breadcrumb-item" onclick="formNavigateToBreadcrumb(\'' + formEscapeHtml(accumulated) + '\', ' + i + ')" style="cursor:pointer;">' + formEscapeHtml(parts[i]) + '</li>';
+        }
+    }
+    
+    list.innerHTML = html;
+}
+
+function formNavigateToRoot() {
+    formPathStack = [];
+    formLoadDirectory('/');
+}
+
+function formNavigateToBreadcrumb(path, index) {
+    formPathStack = formPathStack.slice(0, index + 1);
+    formLoadDirectory(path);
+}
+
+function formSelectVideo(filePath, ext) {
+    var accountId = document.getElementById('openlistAccount').value;
+    var acc = formAccounts.find(function(a) { return a.id == accountId; });
+    if (!acc) return;
+    
+    fetch('/api/openlist/direct_link', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account: acc, path: filePath})
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (!res.success) { alert('获取视频链接失败: ' + (res.message || '')); return; }
+        document.getElementById('videoUrl').value = res.url;
+        document.getElementById('videoType').value = ext;
+        
+        var sourceSelect = document.querySelector('select[name="source"]');
+        if (sourceSelect) sourceSelect.value = 'openlist';
+        
+        if (typeof event !== 'undefined' && event && event.target) {
+            var btn = event.target.closest('.file-item');
+            if (btn) {
+                btn.style.backgroundColor = '#d4edda';
+                setTimeout(function() { btn.style.backgroundColor = ''; }, 800);
+            }
+        }
+        
+        window.scrollTo({top: document.getElementById('videoUrl').offsetTop - 100, behavior: 'smooth'});
+    }).catch(function(err) {
+        alert('请求失败: ' + err);
+    });
+}
+
+function formSelectImage(filePath) {
+    var accountId = document.getElementById('openlistAccount').value;
+    var acc = formAccounts.find(function(a) { return a.id == accountId; });
+    if (!acc) return;
+    
+    fetch('/api/openlist/direct_link', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({account: acc, path: filePath})
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (!res.success) { alert('获取图片链接失败: ' + (res.message || '')); return; }
+        var coverInput = document.querySelector('input[name="cover"]');
+        if (coverInput) {
+            coverInput.value = res.url;
+            coverInput.dispatchEvent(new Event('input'));
+        }
+        
+        if (typeof event !== 'undefined' && event && event.target) {
+            var btn = event.target.closest('.file-item');
+            if (btn) {
+                btn.style.backgroundColor = '#d1ecf1';
+                setTimeout(function() { btn.style.backgroundColor = ''; }, 800);
+            }
+        }
+    }).catch(function(err) {
+        alert('请求失败: ' + err);
+    });
+}
+
+function formFormatSize(bytes) {
+    if (bytes === 0) return '0 B';
+    var k = 1024;
+    var sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    var i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formEscapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.getElementById('videoUrl').addEventListener('change', function() {
+    var val = this.value;
+    var ext = val.split('.').pop().split('?')[0].toLowerCase();
+    if (formVideoExts.indexOf(ext) !== -1) {
+        document.getElementById('videoType').value = ext;
+    }
+});
+
+document.getElementById('coverInput').addEventListener('input', function() {
+    var url = this.value.trim();
+    var preview = document.getElementById('coverPreview');
+    var previewImg = document.getElementById('coverPreviewImg');
+    if (url) {
+        previewImg.src = url;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+});
+</script>
+
+<style>
+.file-item:hover {
+    background-color: #f0f4ff;
+}
+.hover-bg:hover {
+    background-color: #f0f4ff !important;
+}
+.breadcrumb-item {
+    cursor: pointer;
+}
+.breadcrumb-item:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}
