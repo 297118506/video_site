@@ -23,7 +23,7 @@
 
 # 二、后端部署说明（以Windows系统为例）
 
-## 该项目自从第一版开发出来后根据我自己的使用需求和习惯已经完成了多次的更新迭代，最新的详细功能介绍请查看：[服务端功能介绍](https://github.com/297118506/video_site/blob/main/%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D.md)|[APP功能介绍](https://github.com/297118506/video_site/blob/main/APP%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D.md)同时构建出了windows系统的.exe程序，将运行环境集成到了exe程序中，下载后直接运行即可，[下载地址](https://github.com/297118506/video_site/releases);构建了飞牛os的fpk安装包，依赖Python 3.12，应用安装时会同步提示安装依赖，安装时可自定义web端口，[下载地址](https://github.com/297118506/video_site/releases),找日期最近的下载。如果不想使用构建好的程序或系统不支持运行及安装构建好的程序，请参考下方步骤启动该项目。
+## 该项目自从第一版开发出来后根据我自己的使用需求和习惯已经完成了多次的更新迭代，最新的详细功能介绍请查看：[服务端功能介绍](https://github.com/297118506/video_site/blob/main/%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D.md)|[APP功能介绍](https://github.com/297118506/video_site/blob/main/APP%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D.md)。同时构建了windows系统的.exe程序，将运行环境集成到了exe程序中，下载后直接运行即可，[下载地址](https://github.com/297118506/video_site/releases);构建了飞牛os的fpk安装包，依赖Python 3.12，应用安装时会同步提示安装依赖，安装时可自定义web端口，[下载地址](https://github.com/297118506/video_site/releases),找日期最近的下载。如果不想使用构建好的程序或系统不支持运行及安装构建好的程序，请参考下方步骤启动该项目。
 
 ### 安装Python
 - 3.12.0以上版本，安装方式略，不会的自行搜索安装教程
