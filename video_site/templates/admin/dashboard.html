@@ -1,0 +1,260 @@
+{% extends 'base.html' %}
+
+{% block title %}后台管理 - 视频管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            <div class="card">
+                <div class="card-header">管理菜单</div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('admin_dashboard') }}" class="list-group-item list-group-item-action {% if active_tab == 'dashboard' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i> 仪表盘
+                    </a>
+                    <a href="{{ url_for('admin_videos') }}" class="list-group-item list-group-item-action {% if active_tab == 'videos' %}active{% endif %}">
+                        <i class="bi bi-film"></i> 视频管理
+                    </a>
+                    <a href="{{ url_for('admin_shorts') }}" class="list-group-item list-group-item-action {% if active_tab == 'shorts_admin' %}active{% endif %}">
+                        <i class="bi bi-youtube"></i> 短视频管理
+                    </a>
+                    <a href="{{ url_for('admin_categories') }}" class="list-group-item list-group-item-action {% if active_tab == 'categories' %}active{% endif %}">
+                        <i class="bi bi-folder"></i> 分类管理
+                    </a>
+                    <a href="{{ url_for('admin_short_categories') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-folder-symlink"></i> 短·分类管理
+                    </a>
+                    <a href="{{ url_for('admin_series') }}" class="list-group-item list-group-item-action
+                        {% if active_tab == 'series' %}active{% endif %}">
+                        <i class="bi bi-collection"></i> 系列管理
+                    </a>
+                    <a href="{{ url_for('admin_favorites') }}" class="list-group-item list-group-item-action"><i class="bi bi-star"></i> 收藏管理</a>
+                    <a href="{{ url_for('admin_openlist') }}" class="list-group-item list-group-item-action {% if active_tab == 'openlist' %}active{% endif %}">
+                        <i class="bi bi-cloud"></i> OpenList管理
+                    </a>
+                    <a href="{{ url_for('admin_local_import') }}" class="list-group-item list-group-item-action {% if active_tab == 'local_import' %}active{% endif %}">
+                        <i class="bi bi-folder-plus"></i> 本地视频导入
+                    </a>
+                    <a href="{{ url_for('admin_users') }}" class="list-group-item list-group-item-action {% if active_tab == 'users' %}active{% endif %}">
+                        <i class="bi bi-people"></i> 用户管理
+                    </a>
+                    <a href="{{ url_for('admin_db_management') }}" class="list-group-item list-group-item-action {% if active_tab == 'db' %}active{% endif %}">
+                        <i class="bi bi-database"></i> 数据库管理
+                    </a>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="col-md-10">
+            <h2 class="mb-4"><i class="bi bi-speedometer2"></i> 仪表盘</h2>
+            
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary"><i class="bi bi-film"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_normal_videos or 0 }}</h3>
+                            <p>普通视频数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success"><i class="bi bi-collection"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_series }}</h3>
+                            <p>系列总数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-info"><i class="bi bi-folder"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_categories }}</h3>
+                            <p>分类总数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning"><i class="bi bi-eye"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_views }}</h3>
+                            <p>总观看次数</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# 需求2：短视频指标 #}
+            <h5 class="mt-3 mb-2 text-muted"><i class="bi bi-youtube"></i> 短视频概览</h5>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card border-start border-danger border-4">
+                        <div class="stat-icon bg-danger"><i class="bi bi-youtube"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_short_videos or 0 }}</h3>
+                            <p>短视频总数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card border-start border-pink border-4">
+                        <div class="stat-icon bg-pink"><i class="bi bi-folder-symlink"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.total_short_categories or 0 }}</h3>
+                            <p>短视频分类数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card border-start border-orange border-4">
+                        <div class="stat-icon bg-orange"><i class="bi bi-eye-fill"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.short_views or 0 }}</h3>
+                            <p>短视频总播放</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="stat-card border-start border-purple border-4">
+                        <div class="stat-icon bg-purple"><i class="bi bi-check-circle"></i></div>
+                        <div class="stat-info">
+                            <h3>{{ stats.played_short_count or 0 }} / {{ stats.total_short_videos or 0 }}</h3>
+                            <p>已播放短视频</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# 短视频播放进度（按用户维度） #}
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-bar-chart-line"></i> 短视频播放进度（按用户独立记录，随机播放去重用）</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="resetShortPlayedAll()">
+                        <i class="bi bi-arrow-counterclockwise"></i> 清空全部用户标记
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;">#</th>
+                                <th>用户名</th>
+                                <th style="width:120px;">已播放 / 总数</th>
+                                <th>进度</th>
+                                <th style="width:100px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in user_played_stats %}
+                            <tr>
+                                <td class="text-muted">{{ u.user_id }}</td>
+                                <td>{{ u.username }}</td>
+                                <td><b class="text-primary">{{ u.played_count }}</b> / {{ u.total_count }}</td>
+                                <td>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-gradient" style="width: {{ u.pct }}%;" role="progressbar"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-warning py-0 px-2" onclick="resetShortPlayedUser({{ u.user_id }}, '{{ u.username }}')">
+                                        <i class="bi bi-arrow-counterclockwise"></i> 清空
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% if not user_played_stats %}
+                            <tr><td colspan="5" class="text-center text-muted py-3">暂无用户播放记录</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if user_played_stats %}
+                <div class="card-footer small text-muted">
+                    <i class="bi bi-info-circle"></i> 每个用户的播放标记独立记录，用户A播放过的短视频不会影响用户B的随机播放。
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-film"></i> 快捷操作</span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ url_for('admin_video_add') }}" class="btn btn-primary">
+                            <i class="bi bi-plus"></i> 添加视频
+                        </a>
+                        <a href="{{ url_for('admin_shorts_add') }}" class="btn btn-danger">
+                            <i class="bi bi-plus-circle"></i> 添加短视频
+                        </a>
+                        <a href="{{ url_for('admin_series_add') }}" class="btn btn-success">
+                            <i class="bi bi-collection-plus"></i> 创建系列
+                        </a>
+                        <a href="{{ url_for('admin_openlist') }}" class="btn btn-info">
+                            <i class="bi bi-cloud-upload"></i> 从OpenList导入
+                        </a>
+                        <a href="{{ url_for('admin_categories') }}" class="btn btn-warning">
+                            <i class="bi bi-folder-plus"></i> 管理分类
+                        </a>
+                        <a href="{{ url_for('admin_short_categories') }}" class="btn btn-pink">
+                            <i class="bi bi-folder-plus"></i> 短视频分类
+                        </a>
+                        <a href="{{ url_for('shorts_index') }}" class="btn btn-dark" target="_blank">
+                            <i class="bi bi-play-btn"></i> 进入短视频
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 清空全部用户的短视频播放标记
+function resetShortPlayedAll() {
+    if (!confirm('确认清空【所有用户】的短视频播放标记？\n清空后每位用户的随机播放都会重新从全部短视频中随机。')) return;
+    fetch('/api/admin/shorts/reset_played', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify({})  // 不传 user_id 即清空全部
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+          if (data && data.success) {
+              alert('已清空全部用户播放标记，共 ' + (data.reset_count || 0) + ' 条');
+              location.reload();
+          } else {
+              alert('清空失败：' + (data.message || '未知错误'));
+          }
+      }).catch(function(){
+          alert('请求失败，请刷新后重试');
+      });
+}
+
+// 清空指定用户的短视频播放标记
+function resetShortPlayedUser(userId, username) {
+    if (!confirm('确认清空用户【' + username + '】的短视频播放标记？\n清空后该用户的随机播放将重新从全部短视频中随机。')) return;
+    fetch('/api/admin/shorts/reset_played', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify({ user_id: userId })
+    }).then(function(r){ return r.json(); })
+      .then(function(data){
+          if (data && data.success) {
+              alert('已清空用户【' + username + '】的播放标记，共 ' + (data.reset_count || 0) + ' 条');
+              location.reload();
+          } else {
+              alert('清空失败：' + (data.message || '未知错误'));
+          }
+      }).catch(function(){
+          alert('请求失败，请刷新后重试');
+      });
+}
+</script>
+{% endblock %}
