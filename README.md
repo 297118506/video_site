@@ -22,7 +22,7 @@
 - 可在Windows、Linux、MAC等系统环境部署
 
 ### 功能体验
-- 地址：https://demo.rendy.dpdns.org
+- 地址：https://demo.rendy.dpdns.org  （浏览器直接访问或APP“设置-服务器地址”中填入保存后登录账号体验）
 - 用户名：demo   密码：demo
 
 
