@@ -1,6 +1,11 @@
 # 一、项目概述
 - 一个使用python语言开发基于openlist服务为核心搭建的视频播放平台,基于 Flask 的视频管理系统，支持通过 OpenList 管理视频文件，提供首页视频浏览、某音式短视频播放、系列合集、分类管理等功能。
 - 工作流程：OpenList/Alist挂载网盘，本程序直接获取OpenList/Alist视频链接，从而播放视频，在不设置反向代理或内网穿透的前提下，只能在本地局域网中使用，不存在安全问题。
+
+### 功能体验
+- 地址：https://demo.rendy.dpdns.org  （浏览器直接访问或APP“设置-服务器地址”中填入保存后登录账号体验）
+- 用户名：demo   密码：demo
+
 ### 技术栈
 
 | 层级 | 技术 |
@@ -20,11 +25,6 @@
 - 启动命令: `python run.py`
 - 默认账号: `admin / password`
 - 可在Windows、Linux、MAC等系统环境部署
-
-### 功能体验
-- 地址：https://demo.rendy.dpdns.org  （浏览器直接访问或APP“设置-服务器地址”中填入保存后登录账号体验）
-- 用户名：demo   密码：demo
-
 
 # 二、后端部署说明（以Windows系统为例）
 
