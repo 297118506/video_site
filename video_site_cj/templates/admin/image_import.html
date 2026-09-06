@@ -1,0 +1,498 @@
+{% extends 'base.html' %}
+
+{% block title %}图片导入 - 后台{% endblock %}
+
+{% block head %}
+<style>
+/* ===== 图片导入（博客式）— 仿 typecho_web Z-Blog文章管理 UI ===== */
+.typecho-container {
+    display: flex;
+    height: calc(100vh - 200px);
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+.left-sidebar {
+    width: 18%;
+    background-color: #fff;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 10px;
+    overflow: hidden;
+}
+.content-area {
+    width: 32%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #dee2e6;
+    overflow: hidden;
+}
+.preview-area {
+    width: 25%;
+    padding: 10px;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+.alist-area {
+    width: 25%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+.alist-tabs-container {
+    display: flex; align-items: center;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 8px;
+    position: relative; min-height: 26px; overflow: hidden;
+}
+.alist-tabs {
+    flex: 1; display: flex;
+    overflow-x: auto; scroll-behavior: smooth;
+    gap: 2px; white-space: nowrap;
+    scrollbar-width: none;
+}
+.alist-tabs::-webkit-scrollbar { display: none; }
+.alist-tabs-nav { display: flex; gap: 1px; margin-left: 4px; }
+.alist-tab-nav-btn {
+    width: 20px; height: 24px;
+    background: #f8f9fa; border: 1px solid #dee2e6;
+    border-bottom: none; border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #6c757d;
+}
+.alist-tab-nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.alist-tab {
+    padding: 4px 8px; background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-bottom: none; border-radius: 4px 4px 0 0;
+    cursor: pointer; font-size: 0.75rem;
+    white-space: nowrap;
+    display: flex; align-items: center;
+    min-width: 50px; max-width: 100px;
+    gap: 3px; flex-shrink: 0; height: 24px;
+}
+.alist-tab:hover { background: #e9ecef; }
+.alist-tab.active {
+    background: white; border-bottom: 1px solid white;
+    margin-bottom: -1px; z-index: 1; position: relative;
+}
+.alist-tab-name {
+    overflow: hidden; text-overflow: ellipsis;
+    margin-right: 3px; max-width: 45px;
+}
+.alist-tab-close {
+    width: 12px; height: 12px;
+    background: none; border: none; cursor: pointer;
+    font-size: 10px; line-height: 1; padding: 0;
+    color: #6c757d; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.alist-tab-close:hover { background: #dc3545; color: white; }
+.alist-tab-content {
+    flex: 1; display: flex; flex-direction: column;
+    overflow: hidden; gap: 6px;
+}
+.category-section {
+    flex: 1; margin-bottom: 8px;
+    display: flex; flex-direction: column; min-height: 0;
+}
+.import-options {
+    flex: 0 0 auto; margin-top: 8px;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+}
+.category-tree {
+    flex: 1; overflow-y: auto;
+    border: 1px solid #dee2e6;
+    padding: 5px; font-size: 0.75rem;
+    min-height: 0; background: #fafbfc;
+}
+.category-item { line-height: 1.3; }
+.category-name {
+    cursor: pointer; padding: 1px 3px;
+    border-radius: 2px; font-size: 0.75rem;
+    transition: background 0.15s;
+}
+.category-name:hover { background: #e9ecef; }
+.category-name.selected {
+    background-color: #007bff !important;
+    color: white !important;
+    padding: 2px 5px; border-radius: 3px;
+}
+.category-name.match-flash {
+    background-color: #28a745 !important;
+    color: white !important;
+    padding: 2px 5px; border-radius: 3px;
+    box-shadow: 0 0 0 2px rgba(40,167,69,0.35);
+}
+.expand-btn {
+    font-size: 0.6rem; cursor: pointer;
+    user-select: none; width: 12px; text-align: center;
+    color: #6c757d;
+}
+.editor-container {
+    flex-grow: 1; display: flex; flex-direction: column;
+    overflow: hidden;
+}
+.editor-textarea {
+    flex-grow: 1; resize: none;
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    font-family: 'Consolas', 'Microsoft YaHei', monospace;
+    font-size: 0.85rem; line-height: 1.5;
+    min-height: 200px;
+}
+.preview-content {
+    flex-grow: 1; overflow-y: auto;
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    background: #fff;
+    font-size: 0.85rem;
+}
+.preview-content img { max-width: 100%; height: auto; margin: 4px 0; border-radius: 3px; }
+.preview-content table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+.preview-content table td { border: 0; padding: 2px; vertical-align: top; }
+.preview-content table td img { display: block; width: 100%; }
+.button-group { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-process { background-color: #1abc9c; color: white; }
+.btn-process:hover { background-color: #16a085; color: white; }
+.btn-process-double { background-color: #3498db; color: white; }
+.btn-process-double:hover { background-color: #2980b9; color: white; }
+.btn-publish {
+    background-color: #6bfff5; color: #000;
+    flex: 1; font-weight: bold;
+    border: 1px solid #5adfd0;
+}
+.btn-publish:hover { background-color: #5adfd0; color: #000; }
+.btn-publish:disabled { background-color: #c8fff8; cursor: not-allowed; }
+.alist-container { display: flex; flex-direction: column; height: 100%; }
+.file-list-container { position: relative; flex: 1; min-height: 0; }
+.file-list {
+    height: 100%;
+    border: 1px solid #dee2e6;
+    overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: thin;
+    background: #fafbfc;
+}
+.scroll-control-btn {
+    position: absolute; right: 1px;
+    width: 10px; height: 10px;
+    background-color: rgba(108,117,125,0.8);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 100;
+    font-size: 6px; opacity: 0.6;
+    border-radius: 2px;
+}
+.scroll-control-btn.hidden { display: none; }
+.scroll-up-btn { top: 2px; }
+.scroll-down-btn { bottom: 2px; }
+.file-item {
+    padding: 5px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.75rem; line-height: 1.3;
+    transition: background 0.1s;
+}
+.file-item:hover { background-color: #f8f9fa; }
+.file-item.right-click-selected { background-color: #007bff !important; color: white !important; }
+.file-item.right-click-selected .folder-item { color: white !important; }
+.folder-item { color: #007bff; font-weight: bold; font-size: 0.75rem; }
+.btn-group .btn-sm { padding: 0.25rem 0.4rem; font-size: 0.75rem; min-width: 28px; }
+.btn-group .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+.square-btn {
+    width: 32px; height: 32px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.source-mode-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 600;
+    border: 1px solid;
+}
+.source-mode-tag.openlist { background: #e3f2fd; border-color: #90caf9; color: #1565c0; }
+.source-mode-tag.local { background: #fff3e0; border-color: #ffcc80; color: #e65100; }
+.source-mode-hidden { display: none !important; }
+.title-bar {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    display: flex; align-items: center;
+}
+.title-bar label { font-weight: 600; min-width: 80px; margin-bottom: 0; }
+.title-bar input { flex: 1; }
+.import-status-bar {
+    margin-top: 6px;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.pv-stats { font-family: 'Consolas', monospace; }
+.pv-stats .pv-p { color: #28a745; font-weight: bold; }
+.pv-stats .pv-v { color: #007bff; font-weight: bold; }
+.context-menu {
+    position: fixed; background: white;
+    border: 1px solid #ccc; border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    z-index: 10000; min-width: 140px;
+    font-size: 0.8rem;
+}
+.context-menu-item {
+    padding: 6px 12px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+.context-menu-item:hover { background-color: #f8f9fa; }
+.context-menu-item:last-child { border-bottom: none; }
+@media (max-width: 1200px) {
+    .typecho-container { flex-direction: column; height: auto; }
+    .left-sidebar, .content-area, .preview-area, .alist-area {
+        width: 100%; height: 400px; margin-bottom: 8px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 admin-sidebar">
+            {% include 'admin/_sidebar.html' %}
+        </aside>
+
+        <div class="col-md-10 px-0">
+            <div class="title-bar">
+                <label class="form-label me-3 mb-0">图集标题:</label>
+                <input type="text" class="form-control" id="article-title" placeholder="输入图集标题（自动匹配分类）...">
+            </div>
+
+            <div class="typecho-container">
+                <!-- 左：分类 + 复选框 -->
+                <div class="left-sidebar">
+                    <div class="category-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">图集分类（点击选中）</label>
+                            <button class="btn btn-sm btn-outline-secondary" id="toggle-categories">全部展开</button>
+                        </div>
+                        <div class="d-flex mb-2">
+                            <input type="text" class="form-control me-2" id="category-search" placeholder="搜索分类...">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="category-prev" disabled title="上一个匹配"><i class="bi bi-chevron-up"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="category-next" disabled title="下一个匹配"><i class="bi bi-chevron-down"></i></button>
+                            </div>
+                        </div>
+                        <div class="category-tree" id="category-tree" oncontextmenu="handleCategoryContextMenu(event)"></div>
+                    </div>
+                    <div class="import-options">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="opt-include-videos">
+                            <label class="form-check-label" for="opt-include-videos">是否导入视频</label>
+                        </div>
+                        <label class="form-label mb-1">描述（可选）:</label>
+                        <input type="text" class="form-control" id="album-description" placeholder="图集描述...">
+                    </div>
+                </div>
+
+                <!-- 中：Markdown 内容编辑 -->
+                <div class="content-area">
+                    <div class="editor-container">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">图集内容（图片URL）</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="showReplaceDialog()">
+                                    <i class="bi bi-arrow-left-right me-1"></i>查找替换
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="clearContent()">
+                                    <i class="bi bi-eraser me-1"></i>清空
+                                </button>
+                            </div>
+                        </div>
+                        <textarea class="form-control editor-textarea" id="article-content" placeholder="提示：
+- 点击预览按钮，查看右侧OpenList浏览器中的图片和视频
+- 左下角“是否导入视频”不勾选，文件列表中的视频不会被导入，仅导入图片
+- 先点击预览按钮，然后再导入"></textarea>
+
+                        <div class="button-group mt-3">
+                            <button class="btn btn-process" onclick="processLinks()">预览</button>
+                            <button class="btn btn-publish" onclick="publishAlbum()" id="publishBtn">
+                                <i class="bi bi-cloud-arrow-up me-1"></i>一键导入
+                            </button>
+                            <button class="btn btn-process-double" onclick="processLinksDouble()">预览-双排</button>
+                        </div>
+
+                        <div class="import-status-bar mt-2">
+                            <div><span id="pvSummary">图片&视频数量统计区</span></div>
+                        </div>
+
+                        <div id="importProgress" class="progress mt-2" style="height: 14px;">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width:0%">0%</div>
+                        </div>
+                        <div id="progressText" class="small text-muted mt-1"></div>
+                        <div id="importResult" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- 右 1：实时预览 -->
+                <div class="preview-area">
+                    <label class="form-label"><i class="bi bi-eye me-1"></i>实时预览：</label>
+                    <div class="preview-content" id="preview-content">
+                        <p class="text-muted text-center">输入内容后此处实时显示渲染结果</p>
+                    </div>
+                </div>
+
+                <!-- 右 2：OpenList 文件管理 -->
+                <div class="alist-area">
+                    <div class="alist-container">
+                        <!-- OpenList 模式专属控制行：账户选择 + 切换按钮 + 管理账户 -->
+                        <div class="d-flex justify-content-between align-items-center mb-2" id="openlist-control-row">
+                            <select class="form-select form-select-sm" id="alist-account" style="width: 60%;">
+                                <option value="">选择 OpenList 账户</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-secondary square-btn" id="source-mode-toggle"
+                                    onclick="setSourceMode(sourceMode === 'openlist' ? 'local' : 'openlist')"
+                                    title="切换 OpenList / 本地磁盘文件源">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="manageAlistAccounts()">管理账户</button>
+                        </div>
+                        <!-- 本地磁盘模式专属行：模式标签 + 提示 + 切换按钮（三者一行） -->
+                        <div class="d-flex align-items-center gap-2 mb-2 source-mode-hidden" id="local-mode-row">
+                            <span class="source-mode-tag local">
+                                <i class="bi bi-hdd"></i> 本地磁盘模式
+                            </span>
+                            <small class="text-muted">点击右侧按钮切换到 OpenList</small>
+                            <button class="btn btn-sm btn-outline-secondary square-btn ms-auto"
+                                    onclick="setSourceMode(sourceMode === 'openlist' ? 'local' : 'openlist')"
+                                    title="切换 OpenList / 本地磁盘文件源">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </button>
+                        </div>
+                        <div class="alist-tabs-container">
+                            <div class="alist-tabs" id="alist-tabs"></div>
+                            <div class="alist-tabs-nav" id="alist-tabs-nav" style="display: none;">
+                                <button class="alist-tab-nav-btn" id="prev-tab-btn"
+                                        onmousedown="startTabScroll('prev')" onmouseup="stopTabScroll()" onmouseleave="stopTabScroll()">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <button class="alist-tab-nav-btn" id="next-tab-btn"
+                                        onmousedown="startTabScroll('next')" onmouseup="stopTabScroll()" onmouseleave="stopTabScroll()">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alist-tab-content">
+                            <input type="text" class="form-control form-control-sm" id="file-search" placeholder="搜索文件/文件夹...">
+                            <div class="d-flex gap-1 mt-1 mb-1">
+                                <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="searchPrev()">上一个</button>
+                                <button class="btn btn-sm btn-outline-secondary flex-fill" onclick="searchNext()">下一个</button>
+                            </div>
+                            <div class="file-list-container">
+                                <div class="file-list" id="file-list">
+                                    <p class="text-muted text-center mt-3">请先选择 OpenList 账户</p>
+                                </div>
+                                <div class="scroll-control-btn scroll-up-btn hidden" id="scroll-up-btn"
+                                     onmousedown="startFileListScroll('up')" onmouseup="stopFileListScroll()" onmouseleave="stopFileListScroll()">
+                                    <i class="bi bi-chevron-up"></i>
+                                </div>
+                                <div class="scroll-control-btn scroll-down-btn hidden" id="scroll-down-btn"
+                                     onmousedown="startFileListScroll('down')" onmouseup="stopFileListScroll()" onmouseleave="stopFileListScroll()">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button class="btn btn-sm btn-secondary flex-fill" onclick="goUpDirectory()">返回上级</button>
+                                <button class="btn btn-sm btn-primary flex-fill" onclick="copyAllLinks()">复制全部链接</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 查找替换 模态框 -->
+<div class="modal fade" id="replaceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">内容替换设置</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">查找内容:</label>
+                    <textarea class="form-control" id="find-content" rows="2" placeholder="输入要查找的内容..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">替换为:</label>
+                    <textarea class="form-control" id="replace-content" rows="2" placeholder="输入替换后的内容..."></textarea>
+                </div>
+                <div class="alert alert-info small">
+                    <strong>提示:</strong> 导入图集前会自动对内容执行替换规则。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger" onclick="clearReplaceRules()">
+                    <i class="bi bi-trash me-1"></i>清除规则
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveReplaceRules()">保存规则</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 管理 OpenList 账户 模态框 -->
+<div class="modal fade" id="openlistAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">管理 OpenList 账户</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <h6>账户列表</h6>
+                    <button class="btn btn-sm btn-primary" onclick="addOpenlistAccount()">添加账户</button>
+                </div>
+                <div id="openlist-account-list"></div>
+                <hr>
+                <div id="openlist-account-form" style="display:none;">
+                    <h6>新增账户</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6"><label class="form-label small">账户名</label><input type="text" id="new-acc-name" class="form-control form-control-sm"></div>
+                        <div class="col-md-6"><label class="form-label small">服务器 URL</label><input type="text" id="new-acc-url" class="form-control form-control-sm" placeholder="http://192.168.1.10:5244"></div>
+                        <div class="col-md-6"><label class="form-label small">用户名</label><input type="text" id="new-acc-user" class="form-control form-control-sm"></div>
+                        <div class="col-md-6"><label class="form-label small">密码</label><input type="password" id="new-acc-pwd" class="form-control form-control-sm"></div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('openlist-account-form').style.display='none'">取消</button>
+                        <button class="btn btn-sm btn-primary" onclick="submitNewAccount()">保存</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toastContainer" style="position:fixed;top:70px;right:20px;z-index:9999;"></div>
+<script src="{{ url_for('static', filename='js/image_import.js') }}"></script>
+{% endblock %}
