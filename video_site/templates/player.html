@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if video %}{{ video.title }}{% elif series %}{{ series.title }}{% endif %} - 视频播放{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <main class="col-md-12">
+            {% if video %}
+            <div class="player-container">
+                <div class="player-wrapper" id="playerWrapper">
+                    <video id="videoPlayer" controls class="video-player"></video>
+                </div>
+                
+                <div class="video-detail">
+                    <h1>{{ video.title }}</h1>
+                    {% if video.description %}
+                    <p class="text-muted">{{ video.description }}</p>
+                    {% endif %}
+                    <div class="video-meta-bar">
+                        <span><i class="bi bi-eye"></i> {{ video.views }} 观看</span>
+                        {% if video.duration %}
+                        <span><i class="bi bi-clock"></i> {{ video.duration }}</span>
+                        {% endif %}
+                        {% if video.category_id %}
+                        <span><i class="bi bi-tag"></i> 分类 #{{ video.category_id }}</span>
+                        {% endif %}
+                        {% if video.episode_number %}
+                        <span><i class="bi bi-list-ol"></i> 第{{ video.episode_number }}集</span>
+                        {% endif %}
+                        {% if video.genre %}
+                        <span><i class="bi bi-film"></i> {{ video.genre }}</span>
+                        {% endif %}
+                        {% if video.rating %}
+                        <span><i class="bi bi-star"></i> {{ video.rating }}</span>
+                        {% endif %}
+                        {% if video.year %}
+                        <span><i class="bi bi-calendar"></i> {{ video.year }}</span>
+                        {% endif %}
+                        {% if video.actors %}
+                        <span><i class="bi bi-people"></i> {{ video.actors }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if episodes %}
+                <div class="episodes-section">
+                    <h4><i class="bi bi-list-ol"></i> 选集</h4>
+                    <div class="episodes-grid">
+                        {% for ep in episodes %}
+                        <a href="{{ url_for('play_video', video_id=ep.id) }}" 
+                           class="episode-item {% if ep.id == video.id %}active{% endif %}">
+                            第{{ ep.episode_number }}集
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if related_videos %}
+                <div class="related-section">
+                    <h4><i class="bi bi-collection"></i> 相关视频</h4>
+                    <div class="row">
+                        {% for rv in related_videos[:8] %}
+                        <div class="col-md-3 col-sm-6 mb-3">
+                            <a href="{{ url_for('play_video', video_id=rv.id) }}" class="video-card">
+                                <div class="video-cover">
+                                    {% if rv.cover %}
+                                    <img src="{{ rv.cover }}" alt="{{ rv.title }}">
+                                    {% else %}
+                                    <div class="no-cover"><i class="bi bi-play-circle"></i></div>
+                                    {% endif %}
+                                </div>
+                                <div class="video-info">
+                                    <h6 class="video-title">{{ rv.title }}</h6>
+                                </div>
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% elif series %}
+            <div class="player-container">
+                <div class="series-header">
+                    {% if series.cover %}
+                    <img src="{{ series.cover }}" class="series-cover" alt="{{ series.title }}">
+                    {% endif %}
+                    <div>
+                        <h1>{{ series.title }}</h1>
+                        {% if series.description %}
+                        <p class="text-muted">{{ series.description }}</p>
+                        {% endif %}
+                        <span class="badge bg-primary">{{ series.get('episode_count', 0) }}集全</span>
+                    </div>
+                </div>
+                
+                {% if episodes %}
+                <div class="episodes-section">
+                    <h4><i class="bi bi-list-ol"></i> 选集列表</h4>
+                    <div class="episodes-grid">
+                        {% for ep in episodes %}
+                        <a href="{{ url_for('play_video', video_id=ep.id) }}" class="episode-item">
+                            第{{ ep.episode_number }}集
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <p>视频不存在</p>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<script>
+(function() {
+    var videoUrl = {% if video %}{{ video.video_url|tojson }}{% else %}''{% endif %};
+    var videoType = {% if video %}{{ video.video_type|default('')|tojson }}{% else %}''{% endif %};
+    var player = document.getElementById('videoPlayer');
+    var currentVideoId = {% if video %}{{ video.id }}{% else %}null{% endif %};
+    var episodes = {% if episodes %}{{ episodes|tojson }}{% else %}[]{% endif %};
+    // 自动播放开关（默认开启，可记忆用户选择）
+    var autoPlayNext = true;
+    try {
+        var saved = localStorage.getItem('autoPlayNext');
+        if (saved !== null) {
+            autoPlayNext = saved === 'true';
+        }
+    } catch(e) {}
+
+    if (videoUrl) {
+        var ext = videoType.toLowerCase();
+        if (!ext) {
+            ext = videoUrl.split('.').pop().split('?')[0].toLowerCase();
+        }
+        
+        if (ext === 'm3u8') {
+            if (window.Hls && Hls.isSupported()) {
+                var hls = new Hls();
+                hls.loadSource(videoUrl);
+                hls.attachMedia(player);
+            } else if (player.canPlayType('application/vnd.apple.mpegurl')) {
+                player.src = videoUrl;
+            }
+        } else if (ext === 'flv') {
+            player.src = videoUrl;
+            player.type = 'video/x-flv';
+        } else {
+            player.src = videoUrl;
+        }
+    }
+
+    // 查找当前集在 episodes 中的索引，找到下一集
+    function findNextEpisode() {
+        if (!episodes || episodes.length === 0 || !currentVideoId) return null;
+        var idx = episodes.findIndex(function(ep) { return ep.id === currentVideoId; });
+        if (idx === -1 || idx >= episodes.length - 1) return null;
+        return episodes[idx + 1];
+    }
+
+    // 在播放器下方显示自动播放控制条
+    function renderAutoPlayBar() {
+        if (!episodes || episodes.length === 0) return;
+        var nextEp = findNextEpisode();
+        var bar = document.createElement('div');
+        bar.className = 'autoplay-bar';
+        bar.innerHTML = '' +
+            '<label class="autoplay-toggle">' +
+            '  <input type="checkbox" id="autoPlayNextChk" ' + (autoPlayNext ? 'checked' : '') + '>' +
+            '  <span class="toggle-track"><span class="toggle-thumb"></span></span>' +
+            '  <span class="toggle-label">播放完毕后自动播放下一集</span>' +
+            '</label>' +
+            (nextEp
+                ? '<span class="autoplay-next">下一集：第' + nextEp.episode_number + '集 · ' + (nextEp.title || '') + '</span>'
+                : '<span class="autoplay-next muted-text">已是最后一集</span>');
+        var target = document.getElementById('playerWrapper');
+        if (target && target.parentNode) {
+            target.parentNode.insertBefore(bar, target.nextSibling);
+        }
+        var chk = document.getElementById('autoPlayNextChk');
+        if (chk) {
+            chk.addEventListener('change', function() {
+                autoPlayNext = chk.checked;
+                try { localStorage.setItem('autoPlayNext', String(autoPlayNext)); } catch(e) {}
+            });
+        }
+    }
+    renderAutoPlayBar();
+
+    // 倒计时提示条（播放结束前显示或 ended 后跳转前显示）
+    var countdownTimer = null;
+    function showNextCountdown(nextEp, seconds) {
+        var tip = document.getElementById('nextEpTip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'nextEpTip';
+            tip.className = 'next-episode-tip';
+            var wrapper = document.getElementById('playerWrapper');
+            if (!wrapper) return;
+            wrapper.style.position = wrapper.style.position || 'relative';
+            wrapper.appendChild(tip);
+        }
+        var remaining = seconds;
+        tip.innerHTML = '' +
+            '<div class="next-episode-card">' +
+            '  <div class="nec-title">本集已播放完毕</div>' +
+            '  <div class="nec-next">即将播放：第' + nextEp.episode_number + '集 ' + (nextEp.title || '') + '</div>' +
+            '  <div class="nec-actions">' +
+            '    <span class="nec-countdown"><span id="necSec">' + remaining + '</span> 秒后自动播放</span>' +
+            '    <button class="nec-btn nec-cancel" id="necCancel">取消</button>' +
+            '    <a class="nec-btn nec-playnow" href="/play/' + nextEp.id + '">立即播放</a>' +
+            '  </div>' +
+            '</div>';
+        if (countdownTimer) clearInterval(countdownTimer);
+        countdownTimer = setInterval(function() {
+            remaining -= 1;
+            var secEl = document.getElementById('necSec');
+            if (secEl) secEl.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+                window.location.href = '/play/' + nextEp.id;
+            }
+        }, 1000);
+        document.getElementById('necCancel').addEventListener('click', function() {
+            if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+            tip.style.display = 'none';
+        });
+    }
+
+    // 监听播放结束
+    if (player && episodes && episodes.length > 0) {
+        player.addEventListener('ended', function() {
+            if (!autoPlayNext) return;
+            var nextEp = findNextEpisode();
+            if (!nextEp) return;
+            // 显示 5 秒倒计时提示后跳转到下一集
+            showNextCountdown(nextEp, 5);
+        });
+    }
+    
+    window.changeSpeed = function(speed) {
+        if (player) {
+            player.playbackRate = parseFloat(speed);
+            try {
+                localStorage.setItem('videoPlaybackRate', speed);
+            } catch(e) {}
+        }
+    };
+    
+    window.toggleFullscreen = function() {
+        var wrapper = document.getElementById('playerWrapper');
+        if (!document.fullscreenElement) {
+            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+            else if (wrapper.msRequestFullscreen) wrapper.msRequestFullscreen();
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+        }
+    };
+    
+    try {
+        var savedSpeed = localStorage.getItem('videoPlaybackRate');
+        if (savedSpeed) {
+            player.playbackRate = parseFloat(savedSpeed);
+        }
+    } catch(e) {}
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}短视频分类 - 视频管理系统{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="shorts-index-header mb-5 text-center">
+        <h1 class="display-5 fw-bold mb-2">
+            <i class="bi bi-youtube" style="color:#ff4d4f;"></i> 短视频分类
+        </h1>
+        <p class="text-muted mb-0">选择分类后即可开始浏览对应分类的短视频内容</p>
+    </div>
+
+    <div class="short-cat-grid">
+        <a href="{{ url_for('shorts_play', category_id=0) }}" class="short-cat-card short-cat-card-all">
+            <div class="short-cat-icon">
+                <i class="bi bi-grid-fill"></i>
+            </div>
+            <div class="short-cat-info">
+                <div class="short-cat-name">全部</div>
+                <div class="short-cat-count">{{ total_shorts }} 个视频</div>
+            </div>
+        </a>
+
+        {% for cat in categories %}
+        {% if cat.parent_id == 0 %}
+        {% set child_count = namespace(total=0) %}
+        {% for c2 in categories %}
+            {% if c2.parent_id == cat.id %}{% set child_count.total = child_count.total + (cat_counts.get(c2.id, 0)) %}{% endif %}
+        {% endfor %}
+        {% set cat_total = cat_counts.get(cat.id, 0) + child_count.total %}
+        <a href="{{ url_for('shorts_play', category_id=cat.id) }}" class="short-cat-card">
+            <div class="short-cat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                <i class="bi bi-folder"></i>
+            </div>
+            <div class="short-cat-info">
+                <div class="short-cat-name">{{ cat.name }}</div>
+                <div class="short-cat-count">{{ cat_total }} 个视频</div>
+            </div>
+            {% set ns = namespace(has_sub=false) %}
+            {% for c2 in categories %}
+                {% if c2.parent_id == cat.id %}{% set ns.has_sub = true %}{% endif %}
+            {% endfor %}
+            {% if ns.has_sub %}
+            <div class="short-cat-subcount">含子分类</div>
+            {% endif %}
+        </a>
+
+        {% for subcat in categories %}
+        {% if subcat.parent_id == cat.id %}
+        <a href="{{ url_for('shorts_play', category_id=subcat.id) }}" class="short-cat-card short-cat-card-sub">
+            <div class="short-cat-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">
+                <i class="bi bi-folder2-open"></i>
+            </div>
+            <div class="short-cat-info">
+                <div class="short-cat-name">{{ subcat.name }}</div>
+                <div class="short-cat-count">{{ cat_counts.get(subcat.id, 0) }} 个视频</div>
+            </div>
+        </a>
+        {% endif %}
+        {% endfor %}
+
+        {% endif %}
+        {% endfor %}
+
+        {% if not categories %}
+        <div class="empty-state mx-auto mt-5" style="grid-column: 1 / -1;">
+            <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+            <h4>暂无短视频分类</h4>
+            <p class="text-muted">请先前往后台「短·分类管理」创建分类，或直接点击「全部」播放所有短视频。</p>
+            <a href="{{ url_for('shorts_play', category_id=0) }}" class="btn btn-primary">
+                <i class="bi bi-play-circle"></i> 播放全部短视频
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.shorts-index-header h1 i { vertical-align: -0.1em; }
+
+.short-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.short-cat-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #eef0f4;
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.short-cat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    border-color: transparent;
+    text-decoration: none;
+    color: inherit;
+}
+
+.short-cat-card-all {
+    background: linear-gradient(135deg, #ff4d4f, #ff7a45);
+    color: #fff;
+    border: none;
+}
+.short-cat-card-all:hover { filter: brightness(1.05); }
+.short-cat-card-all .short-cat-name,
+.short-cat-card-all .short-cat-count { color: #fff !important; }
+
+.short-cat-card-sub {
+    border-left: 4px solid #f5576c;
+}
+
+.short-cat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1890ff, #36cfc9);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    flex-shrink: 0;
+}
+.short-cat-card-all .short-cat-icon {
+    background: rgba(255,255,255,0.25);
+    border: 1px solid rgba(255,255,255,0.35);
+}
+
+.short-cat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.short-cat-name {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.short-cat-count {
+    font-size: 13px;
+    color: #8c8c8c;
+}
+
+.short-cat-subcount {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: #f5f7fa;
+    color: #909399;
+    border-radius: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+.empty-icon {
+    font-size: 64px;
+    color: #d9d9d9;
+    margin-bottom: 16px;
+}
+.empty-state h4 {
+    color: #333;
+    margin-bottom: 8px;
+}
+</style>
+{% endblock %}

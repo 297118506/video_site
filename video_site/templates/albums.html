@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}图集 - 视频管理系统{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-md-2 sidebar">
+            <div class="card">
+                <div class="card-header"><i class="bi bi-images"></i> 图集分类</div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush" id="albumCategoryList">
+                        <li class="list-group-item {% if not current_category %}active{% endif %}">
+                            <a href="{{ url_for('albums_index') }}">全部图集</a>
+                        </li>
+                        {% for cat in categories %}
+                            {% if cat.parent_id == 0 %}
+                                {% set ns = namespace(has_sub=false) %}
+                                {% for subcat in categories %}
+                                    {% if subcat.parent_id == cat.id %}{% set ns.has_sub = true %}{% endif %}
+                                {% endfor %}
+                                <li class="list-group-item parent-cat {% if current_category and (current_category.id == cat.id or current_category.parent_id == cat.id) %}active{% endif %}" data-cat-id="{{ cat.id }}" data-has-sub="{{ 'true' if ns.has_sub else 'false' }}">
+                                    <span class="cat-toggle" onclick="toggleAlbumCategory({{ cat.id }}, event)"><i class="bi bi-chevron-right cat-arrow"></i></span>
+                                    <a href="{{ url_for('albums_by_category', category_id=cat.id) }}">{{ cat.name }}</a>
+                                </li>
+                                {% for subcat in categories %}
+                                    {% if subcat.parent_id == cat.id %}
+                                        <li class="list-group-item sub-cat {% if current_category and current_category.id == subcat.id %}active{% endif %}" data-parent-id="{{ cat.id }}">
+                                            <a href="{{ url_for('albums_by_category', category_id=subcat.id) }}"><span class="sub-cat-indent">└ </span>{{ subcat.name }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <main class="col-md-10">
+            {% if current_category %}
+            <div class="category-header mb-4">
+                <h2><i class="bi bi-tag"></i> {{ current_category.name }}</h2>
+                <p class="text-muted">{{ current_category.description if current_category.description else '' }}</p>
+            </div>
+            {% else %}
+            <div class="welcome-header mb-4">
+                <h2><i class="bi bi-images"></i> 图集</h2>
+                <p class="text-muted">浏览导入的图片合集。点击进入查看完整图片库。</p>
+            </div>
+            {% endif %}
+
+            {% if albums %}
+            <div class="album-grid">
+                {% for a in albums %}
+                <a href="{{ url_for('album_detail', album_id=a.id) }}" class="album-card">
+                    <div class="album-cover">
+                        {% if a.cover %}
+                        <img src="{{ a.cover }}" alt="{{ a.title }}" onload="adaptCoverOrientation(this)" onerror="this.style.display='none';this.parentNode.innerHTML='<div class=\'no-cover\'><i class=\'bi bi-images\'></i></div>'">
+                        {% else %}
+                        <div class="no-cover"><i class="bi bi-images"></i></div>
+                        {% endif %}
+                        <span class="image-count-badge">{{ a.image_count or 0 }}图</span>
+                    </div>
+                    <div class="album-info">
+                        <h6 class="album-title" title="{{ a.title }}">{{ a.title }}</h6>
+                        {% if a.image_count %}
+                        <small class="text-muted"><i class="bi bi-eye"></i> {{ a.views or 0 }}</small>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state text-center py-5 text-muted">
+                <i class="bi bi-images" style="font-size:3rem;"></i>
+                <p class="mt-3">还没有图集。{% if session.get('user_role') == 'admin' %}<a href="{{ url_for('admin_image_import') }}">前往图片导入</a>{% endif %}</p>
+            </div>
+            {% endif %}
+
+            {% if total_pages and total_pages > 1 %}
+            <nav class="mt-4" aria-label="page nav">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        {% set prev_url = url_for('albums_by_category', category_id=current_category.id, page=page-1) if current_category else url_for('albums_index', page=page-1) %}
+                        <a class="page-link" href="{{ prev_url }}">&laquo;</a>
+                    </li>
+                    {% for p in range(1, total_pages + 1) %}
+                        {% if p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                        {% set p_url = url_for('albums_by_category', category_id=current_category.id, page=p) if current_category else url_for('albums_index', page=p) %}
+                        <li class="page-item {% if p == page %}active{% endif %}"><a class="page-link" href="{{ p_url }}">{{ p }}</a></li>
+                        {% elif p == page - 3 or p == page + 3 %}
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% set next_url = url_for('albums_by_category', category_id=current_category.id, page=page+1) if current_category else url_for('albums_index', page=page+1) %}
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}"><a class="page-link" href="{{ next_url }}">&raquo;</a></li>
+                </ul>
+            </nav>
+            {% endif %}
+        </main>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 分类树折叠
+function toggleAlbumCategory(catId, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var li = document.querySelector('#albumCategoryList .parent-cat[data-cat-id="' + catId + '"]');
+    if (!li) return;
+    var arrow = li.querySelector('.cat-arrow');
+    var subLis = document.querySelectorAll('#albumCategoryList .sub-cat[data-parent-id="' + catId + '"]');
+    var isCollapsed = li.getAttribute('data-collapsed') === 'true';
+    if (isCollapsed) {
+        subLis.forEach(function(el){ el.style.display = ''; });
+        arrow.classList.remove('bi-chevron-down');
+        arrow.classList.add('bi-chevron-right');
+        li.setAttribute('data-collapsed', 'false');
+    } else {
+        subLis.forEach(function(el){ el.style.display = 'none'; });
+        arrow.classList.remove('bi-chevron-right');
+        arrow.classList.add('bi-chevron-down');
+        li.setAttribute('data-collapsed', 'true');
+    }
+}
+</script>
+{% endblock %}
